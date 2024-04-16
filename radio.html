@@ -1,0 +1,2259 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <script src="https://cdn.jsdelivr.net/npm/@mediapipe/camera_utils/camera_utils.js" crossorigin="anonymous"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@mediapipe/control_utils/control_utils.js" crossorigin="anonymous"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@mediapipe/control_utils_3d/control_utils_3d.js" crossorigin="anonymous"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@mediapipe/drawing_utils/drawing_utils.js" crossorigin="anonymous"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@mediapipe/pose/pose.js" crossorigin="anonymous"></script>
+</head>
+
+<body>
+  <div class="container">
+    <video hidden class="input_video"></video><!--入力映像-->
+    <canvas class="output_canvas" width="1280px" height="720px"></canvas> <!--描画するキャンパス-->
+    <!--<div class="landmark-grid-container"></div>-->
+
+    <div id="angle"></div><!--体の角度とかの出力先-->
+    <aside class = "side" id="count" font size = "5"></aside>
+    <audio id="testAudio" src="./SE/attention.mp3"></audio>
+    <div class = "tap">
+      <button type = "button" class ="button1" id = "button1" font size = "0.5">Result</button>
+      <button type = "button" class ="button2" id = "button2" font size = "0.5">Reset</button>
+    </div>
+  </div>
+</body>
+<style>
+  .container{
+    display: flex;
+    max-width: 1200px;
+    margin: 0 auto;
+  }
+  .input_video{
+    width: 72%;
+    height:510px;
+  }
+  .output_canvas{
+    width: 72%;
+    height:510px;
+  }
+  .side{
+  width: 30%;
+  line-height: 0.7;
+  }
+  .tap{
+    width:5%;
+  }
+  .button1{
+    height:50px;
+  }
+  .button2{
+    height:50px;
+  }
+</style>
+</html>
+
+<script type="module">
+    const videoElement = document.getElementsByClassName('input_video')[0];
+    const canvasElement = document.getElementsByClassName('output_canvas')[0];
+    const canvasCtx = canvasElement.getContext('2d');
+    const landmarkContainer = document.getElementsByClassName('landmark-grid-container')[0];
+    //const grid = new LandmarkGrid(landmarkContainer);
+    const angleElement = document.getElementById("angle");
+    const countElement = document.getElementById("count");
+    const button1Element = document.getElementById("button1");
+    const button2Element = document.getElementById("button2");
+    //const sideElement = document.getElementById("side");
+    //const crossElement = document.getElementById("cross");
+
+    //効果音
+    const SE = {
+      attention:new Audio('SE/attention.mp3'),
+      check:new Audio('SE/check.mp3'),
+      kiwotsuke:new Audio('SE/kiwotsuke.mp3'),
+      radio:new Audio('SE/radio_using.mp3'),
+      score:new Audio('SE/score_is.mp3'),
+      nobi_result:new Audio('SE/nobi.mp3'),
+      udeashi_result:new Audio('SE/udeashi.mp3'),
+      udemawashi_result:new Audio('SE/udemawashi.mp3'),
+      mune_result:new Audio('SE/mune.mp3'),
+      yoko_result:new Audio('SE/yoko.mp3'),
+      zengo_result:new Audio('SE/zengo.mp3'),
+      nejiri_result:new Audio('SE/nejiri.mp3'),
+      joge_result:new Audio('SE/joge.mp3'),
+      munehiraki_result:new Audio('SE/munehiraki.mp3'),
+      cycle_result:new Audio('SE/cycle.mp3'),
+      jump_result:new Audio('SE/jump.mp3'),
+      breath_result:new Audio('SE/breath.mp3'),
+      hundred:new Audio('SE/100.mp3'),
+      ninetyF:new Audio('SE/ninety_five.mp3'),
+      ninety:new Audio('SE/ninety.mp3'),
+      eightyF:new Audio('SE/eighty_five.mp3'),
+      eighty:new Audio('SE/eighty.mp3'),
+      seventyF:new Audio('SE/75.mp3'),
+      seventy:new Audio('SE/seventy.mp3'),
+      sixtyF:new Audio('SE/sixty_five.mp3'),
+      sixty:new Audio('SE/sixty.mp3'),
+      fiftyF:new Audio('SE/fifty_five.mp3'),
+      fifty:new Audio('SE/fifty.mp3'),
+      fortyF:new Audio('SE/forty_five.mp3'),
+      forty:new Audio('SE/forty.mp3'),
+      thirtyF:new Audio('SE/thirty_five.mp3'),
+      thirty:new Audio('SE/thirty.mp3'),
+      twentyF:new Audio('SE/twenty_five.mp3'),
+      twenty:new Audio('SE/twenty.mp3'),
+      fifteen:new Audio('SE/fifteen.mp3'),
+      ten:new Audio('SE/ten.mp3'),
+      five:new Audio('SE/five.mp3'),
+      zero:new Audio('SE/zero.mp3'),
+      success0:new Audio('SE/zero_kai.mp3'),
+      success1:new Audio('SE/one_kai.mp3'),
+      success2:new Audio('SE/two_kai.mp3'),
+      success3:new Audio('SE/three_kai.mp3'),
+      success4:new Audio('SE/four_kai.mp3'),
+      success5:new Audio('SE/five_kai.mp3'),
+      success6:new Audio('SE/six_kai.mp3'),
+      success7:new Audio('SE/seven_kai.mp3'),
+      success8:new Audio('SE/eight_kai.mp3'),
+      //one_miss:new Audio('SE/87.5.mp3'),
+      //three_miss:new Audio('SE/62.5.mp3'),
+      //fifty_ten:new Audio('SE/50.mp3'),
+      //five_miss:new Audio('SE/37.5.mp3'),
+      //six_miss:new Audio('SE/25.mp3'),
+      //seven_miss:new Audio('SE/12.5.mp3'),
+      OK:new Audio('SE/OKsound2.mp3'),
+      announce:new Audio('SE/announce3.mp3'),
+      START:new Audio('SE/STARTannounce.mp3'),
+      otsukare:new Audio('SE/otsukare.mp3'),
+      otsukare2:new Audio('SE/otsukare2.mp3'),
+    };
+
+    //カウント
+    //const NowTime = 0;
+    //const StartTime = 0;
+    var count = 0; //時間のカウント
+    var count2 = 0;
+    var top_count = 0; //伸びの運動
+    var side_count = 0; //腕と脚の運動
+    var cross_count = 0;
+    var circle_count = 0; //腕を回す運動
+    var X_count = 0; //身体を大きく広げる運動
+    var arms_over = 0; //腕をあげて横を伸ばす運動
+    var back_count = 0; //身体を反らす運動
+    var to_lr_count = 0; //身体を左右にねじる運動
+    var up_down_count = 0; //腕を上下に伸ばす運動
+    var chest_count = 0; //胸を反らす運動
+    var cycle_count = 0; //身体を大きく回す運動
+    var jump_count = 0; //ジャンプ
+    var side_count2 = 0;
+    var breath_count = 0;
+    var total = 0;
+
+    var result = 0; //結果の提示に使用
+
+    //フラグ
+    var flag_announce = false;
+    var flag = false; //jキーのフラグ
+    var flag1= false; //kキーのフラグ
+    var flag_check = false;
+    var flag_left_check = false;
+    var flag_right_check = false;
+    var flag_go = false;
+    var flag_music = false;
+    var flag_top = false; //両腕が上に上がっているか
+    var flag_side = false; //両腕が左右に広がっているか
+    var flag_cross = false; //腕が交差しているか
+    var flag_X = false; //身体を大の字に広げているか
+    var flag_arm = false; //身体側面を伸ばしているか
+    var flag_back = false; //身体を反らしているか
+    var flag_lr = false; //腕を左右に振っているか
+    var flag_up = false;//股を開いて腕が上に上がっているか
+    var flag_chest = false;//胸を反ったか
+    var flag_cycle = false;//身体を回したか
+    var flag_jump = false;//ジャンプしたか
+    var flag_side2 = false;
+    var flag_top2 = false;
+
+    document.addEventListener('keydown', event => {
+    // 変数eventの中身はKeyboardEventオブジェクト
+        if(!flag && event.key === 'f'){
+          flag = true;
+        }
+        if(!flag1 && event.key === 'j'){
+          flag1 = true;
+        }
+    });
+    
+    button2.addEventListener('click',()=>{
+      flag = true;
+    })
+    button1.addEventListener('click',()=>{
+      flag1 = true;
+    })
+
+    document.addEventListener('DOMContentLoaded', (event) => {
+    let audio = document.getElementById('testAudio');
+    audio.play().then(() => {
+        console.log('Audio is playing automatically.');
+    }).catch(error => {
+        console.error('Auto play failed:', error);
+    });
+});
+
+    
+    //pose1とpose2からベクトルを作る関数
+    function makeVector(pose1,pose2){//始点,終点
+      const vector1 = {
+          x:Math.round((pose2.x-pose1.x)*1000000)/1000000,
+          y:Math.round((pose2.y-pose1.y)*1000000)/1000000,
+          z:Math.round((pose2.z-pose1.z)*1000000)/1000000,
+          visibility:Math.min(pose1.visibility,pose2.visibility),
+      }
+      return vector1;
+    }
+
+    //肩の角度から体の傾きを計算する関数
+    function bodyAngle(results){
+      var pL = results.poseWorldLandmarks;
+      var rh = POSE_LANDMARKS.RIGHT_SHOULDER;
+      var lh = POSE_LANDMARKS.LEFT_SHOULDER;
+      var vec = [pL[rh].x-pL[lh].x,pL[rh].y-pL[lh].y,pL[rh].z-pL[lh].z];
+      var vec_long = vec[0]**2+vec[1]**2+vec[2]**2;
+      var costh = -1*vec[0]/Math.sqrt(vec_long);
+      var sign;
+      if(pL[rh].z<=pL[lh].z){
+        sign = 1;
+      }else{
+        sign = -1;
+      }
+      return sign*Math.round(Math.acos(costh)*180/Math.PI*1000)/1000;
+    }
+
+    //キーポイントを引数とした角度の計算
+    function calcAngle(pose1,pose2,pose3){
+        // please learn here -> https://npm.runkit.com/%40mediapipe%2Fpose
+
+        const vector1 = {
+            x:Math.round((pose1.x-pose2.x)*1000000)/1000000,
+            y:Math.round((pose1.y-pose2.y)*1000000)/1000000,
+            z:Math.round((pose1.z-pose2.z)*1000000)/1000000,
+            visibility:Math.min(pose1.visibility,pose2.visibility),
+        }
+        const vector2 = {
+            x:Math.round((pose3.x-pose2.x)*1000000)/1000000,
+            y:Math.round((pose3.y-pose2.y)*1000000)/1000000,
+            z:Math.round((pose3.z-pose2.z)*1000000)/1000000,
+            visibility:Math.min(pose3.visibility,pose2.visibility),
+        }
+
+        //console.log("arrived vector",vector1,vector2)
+        return {
+            angle: Math.acos((vector1.x * vector2.x + vector1.y * vector2.y + vector1.z * vector2.z) / ( Math.sqrt(vector1.x**2 + vector1.y**2 + vector1.z**2) * Math.sqrt(vector2.x**2 + vector2.y**2 + vector2.z**2))) * 180 / Math.PI,
+            visibility: Math.min(vector1.visibility, vector2.visibility),
+            "vector1":vector1,
+            "vector2":vector2,
+        };
+    }
+
+    //ベクトルを引数とした角度の計算
+    function calcVectorAngle(vector1,vector2){
+      return {
+          angle: Math.acos((vector1.x * vector2.x + vector1.y * vector2.y + vector1.z * vector2.z) / ( Math.sqrt(vector1.x**2 + vector1.y**2 + vector1.z**2) * Math.sqrt(vector2.x**2 + vector2.y**2 + vector2.z**2))) * 180 / Math.PI,
+          visibility: Math.min(vector1.visibility, vector2.visibility),
+          "vector1":vector1,
+          "vector2":vector2,
+      };
+    }
+
+    //腕を広げているかどうかの計算
+    /*function armsExtended(results){
+      const pL = results.poseWorldLandmarks;
+      const right_shoulder = pL[POSE_LANDMARKS.RIGHT_SHOULDER];
+      const right_elbow = pL[POSE_LANDMARKS.RIGHT_ELBOW];
+      const right_wrist = pL[POSE_LANDMARKS.RIGHT_WRIST];
+      const right_hip = pL[POSE_LANDMARKS.RIGHT_HIP];
+      const left_shoulder = pL[POSE_LANDMARKS.LEFT_SHOULDER];
+      const left_elbow = pL[POSE_LANDMARKS.LEFT_ELBOW];
+      const left_wrist = pL[POSE_LANDMARKS.LEFT_WRIST];
+      const left_hip = pL[POSE_LANDMARKS.LEFT_HIP];
+
+      var is_stretch =  (calcAngle(right_shoulder,right_elbow,right_wrist).angle>=150)&&(calcAngle(left_shoulder,left_elbow,left_wrist).angle>=150);//腕を伸ばしているかどうか
+      var is_extended = (calcAngle(right_hip,right_shoulder,right_elbow).angle>=70)&&(calcAngle(right_hip,right_shoulder,right_elbow).angle<=110)&&(calcAngle(left_hip,left_shoulder,left_elbow).angle>=70)&&(calcAngle(left_hip,left_shoulder,left_elbow).angle<=110);//腕を広げているかどうか
+      var is_front = (calcAngle(right_shoulder,left_shoulder,left_elbow).angle>= 70)&&(calcAngle(right_shoulder,left_shoulder,left_elbow).angle<= 110)&&(calcAngle(left_shoulder,right_shoulder,right_elbow).angle>= 70)&&(calcAngle(left_shoulder,right_shoulder,right_elbow).angle<= 110);//前に手をあげてるかどうか
+      return is_stretch && is_extended && is_front;//腕が伸びていて、かつ、腕が広がっていたらよいとする
+    }*/
+
+
+    //気をつけの姿勢
+    function Standard(results){
+      const pL = results.poseWorldLandmarks;
+      const right_shoulder = pL[POSE_LANDMARKS.RIGHT_SHOULDER];
+      const right_elbow = pL[POSE_LANDMARKS.RIGHT_ELBOW];
+      const right_wrist = pL[POSE_LANDMARKS.RIGHT_WRIST];
+      const right_hip = pL[POSE_LANDMARKS.RIGHT_HIP];
+      const left_shoulder = pL[POSE_LANDMARKS.LEFT_SHOULDER];
+      const left_elbow = pL[POSE_LANDMARKS.LEFT_ELBOW];
+      const left_wrist = pL[POSE_LANDMARKS.LEFT_WRIST];
+      const left_hip = pL[POSE_LANDMARKS.LEFT_HIP];
+      const right_knee = pL[POSE_LANDMARKS.RIGHT_KNEE];
+      const right_ankle = pL[POSE_LANDMARKS.RIGHT_ANKLE];
+      const left_knee = pL[POSE_LANDMARKS.LEFT_KNEE];
+      const left_ankle = pL[POSE_LANDMARKS.LEFT_ANKLE];
+      
+      var is_stretch =  (calcAngle(right_shoulder,right_elbow,right_wrist).angle>=140)&&(calcAngle(left_shoulder,left_elbow,left_wrist).angle>=140);//腕を伸ばしているかどうか
+      var is_down = (calcAngle(left_hip, left_shoulder, left_elbow).angle <= 40)&&(calcAngle(right_hip, right_shoulder, right_elbow).angle <= 40);
+      var legs_stretch = (calcAngle(right_hip, right_knee, right_ankle).angle >= 150)&&(calcAngle(left_hip, left_knee, left_ankle).angle >= 150);
+      var legs_close  = (right_ankle.x >= right_shoulder.x) && (left_ankle.x <= left_shoulder.x);
+      return is_stretch && is_down && legs_stretch && legs_close;
+    }
+
+
+    //腕が横からあがっているかどうかの計算
+    function armsSide(results){
+      const pL = results.poseWorldLandmarks;
+      const right_shoulder = pL[POSE_LANDMARKS.RIGHT_SHOULDER];
+      const right_elbow = pL[POSE_LANDMARKS.RIGHT_ELBOW];
+      const right_wrist = pL[POSE_LANDMARKS.RIGHT_WRIST];
+      const right_hip = pL[POSE_LANDMARKS.RIGHT_HIP];
+      const left_shoulder = pL[POSE_LANDMARKS.LEFT_SHOULDER];
+      const left_elbow = pL[POSE_LANDMARKS.LEFT_ELBOW];
+      const left_wrist = pL[POSE_LANDMARKS.LEFT_WRIST];
+      const left_hip = pL[POSE_LANDMARKS.LEFT_HIP];
+
+      var is_stretch =  (calcAngle(right_shoulder,right_elbow,right_wrist).angle>=150)&&(calcAngle(left_shoulder,left_elbow,left_wrist).angle>=150);//腕を伸ばしているかどうか
+      var is_extended = (calcAngle(right_hip,right_shoulder,right_elbow).angle>=90)&&(calcAngle(right_hip,right_shoulder,right_elbow).angle<=130)&&(calcAngle(left_hip,left_shoulder,left_elbow).angle>=90)&&(calcAngle(left_hip,left_shoulder,left_elbow).angle<=130);//腕を広げているかどうか
+      var is_side = (calcAngle(right_shoulder,left_shoulder,left_elbow).angle>=160)&&(calcAngle(right_shoulder,left_shoulder,left_elbow).angle<= 190)&&(calcAngle(left_shoulder,right_shoulder,right_elbow).angle>= 160)&&(calcAngle(left_shoulder,right_shoulder,right_elbow).angle<= 190);//前に手をあげてるかどうか
+
+      return is_stretch && is_extended && is_side;//腕が伸びていて、かつ、腕が広がっていたらよいとする
+    }
+
+    //腕が真上にあるかどうかの計算
+    function armsTop(results){
+      const pL = results.poseWorldLandmarks;
+      const right_shoulder = pL[POSE_LANDMARKS.RIGHT_SHOULDER];
+      const right_elbow = pL[POSE_LANDMARKS.RIGHT_ELBOW];
+      const right_wrist = pL[POSE_LANDMARKS.RIGHT_WRIST];
+      const right_hip = pL[POSE_LANDMARKS.RIGHT_HIP];
+      const left_shoulder = pL[POSE_LANDMARKS.LEFT_SHOULDER];
+      const left_elbow = pL[POSE_LANDMARKS.LEFT_ELBOW];
+      const left_wrist = pL[POSE_LANDMARKS.LEFT_WRIST];
+      const left_hip = pL[POSE_LANDMARKS.LEFT_HIP];
+
+      var is_stretch =  (calcAngle(right_shoulder,right_elbow,right_wrist).angle>=150)&&(calcAngle(left_shoulder,left_elbow,left_wrist).angle>=150);//腕を伸ばしているかどうか
+      var is_top = (calcAngle(right_hip,right_shoulder,right_elbow).angle>=160)&&(calcAngle(right_hip,right_shoulder,right_elbow).angle<=180)&&(calcAngle(left_hip,left_shoulder,left_elbow).angle>=160)&&(calcAngle(left_hip,left_shoulder,left_elbow).angle<=180);//腕が真上にあるかどうか
+      var is_front = (calcAngle(right_shoulder,left_shoulder,left_elbow).angle>= 70)&&(calcAngle(right_shoulder,left_shoulder,left_elbow).angle<= 110)&&(calcAngle(left_shoulder,right_shoulder,right_elbow).angle>= 70)&&(calcAngle(left_shoulder,right_shoulder,right_elbow).angle<= 110);//前に手をあげてるかどうか
+      return is_stretch && is_top && is_front;//腕が伸びていて、かつ、腕が広がっていたらよいとする
+    }
+
+    //腕がクロスしているかどうかの計算
+    function armsCross(results){
+      const pL = results.poseWorldLandmarks;
+      const right_wrist = pL[POSE_LANDMARKS.RIGHT_WRIST];
+      const right_shoulder = pL[POSE_LANDMARKS.RIGHT_SHOULDER];
+      const left_shoulder = pL[POSE_LANDMARKS.LEFT_SHOULDER];
+      const left_wrist = pL[POSE_LANDMARKS.LEFT_WRIST];
+
+      var is_bent_elbow =  (left_wrist.x - right_wrist.x <= 0);//手首の座標の比較
+      //var is_low = (right_wrist.y < right_shoulder.y) && (left_wrist.y < left_shoulder.y);
+      return  is_bent_elbow;
+    }
+
+    //4つ目の運動で使用
+    function bodyX(results){
+      const pL = results.poseWorldLandmarks;
+      const right_shoulder = pL[POSE_LANDMARKS.RIGHT_SHOULDER];
+      const right_elbow = pL[POSE_LANDMARKS.RIGHT_ELBOW];
+      const right_hip = pL[POSE_LANDMARKS.RIGHT_HIP];
+      const right_knee = pL[POSE_LANDMARKS.RIGHT_KNEE];
+      const left_shoulder = pL[POSE_LANDMARKS.LEFT_SHOULDER];
+      const left_elbow = pL[POSE_LANDMARKS.LEFT_ELBOW];
+      const left_hip = pL[POSE_LANDMARKS.LEFT_HIP];
+      const left_knee = pL[POSE_LANDMARKS.LEFT_KNEE];
+
+      //var is_stretch =  (calcAngle(right_shoulder,right_elbow,right_wrist).angle>=160)&&(calcAngle(left_shoulder,left_elbow,left_wrist).angle>=160);//腕を伸ばしているかどうか
+      var is_open_arms = (calcAngle(right_hip,right_shoulder,right_elbow).angle>=120)&&(calcAngle(right_hip,right_shoulder,right_elbow).angle<=170)&&(calcAngle(left_hip,left_shoulder,left_elbow).angle>=120)&&(calcAngle(left_hip,left_shoulder,left_elbow).angle<=170);//腕を広げているかどうか
+      var is_open_legs = (right_hip.x > right_knee.x && left_hip.x < left_knee.x);
+      return is_open_arms && is_open_legs;
+    }
+
+    //5つ目の運動で使用
+    function right_arm_side(results){
+      const pL = results.poseWorldLandmarks;
+      const right_shoulder = pL[POSE_LANDMARKS.RIGHT_SHOULDER];
+      const right_elbow = pL[POSE_LANDMARKS.RIGHT_ELBOW];
+      const right_wrist = pL[POSE_LANDMARKS.RIGHT_WRIST];
+      const right_hip = pL[POSE_LANDMARKS.RIGHT_HIP];
+      const left_shoulder = pL[POSE_LANDMARKS.LEFT_SHOULDER];
+
+      var is_stretch =  (calcAngle(right_shoulder,right_elbow,right_wrist).angle>=150);//腕を伸ばしているかどうか
+      var is_extended = (calcAngle(right_hip,right_shoulder,right_elbow).angle>=90)&&(calcAngle(right_hip,right_shoulder,right_elbow).angle<=130);//腕を広げているかどうか
+      var is_side = (calcAngle(left_shoulder,right_shoulder,right_elbow).angle>= 160)&&(calcAngle(left_shoulder,right_shoulder,right_elbow).angle<= 190);//前に手をあげてるかどうか
+
+      return is_stretch && is_extended && is_side;//腕が伸びていて、かつ、腕が広がっていたらよいとする
+    }
+
+    //5つ目の運動で使用
+    function left_arm_side(results){
+      const pL = results.poseWorldLandmarks;
+      const left_shoulder = pL[POSE_LANDMARKS.LEFT_SHOULDER];
+      const left_elbow = pL[POSE_LANDMARKS.LEFT_ELBOW];
+      const left_wrist = pL[POSE_LANDMARKS.LEFT_WRIST];
+      const left_hip = pL[POSE_LANDMARKS.LEFT_HIP];
+      const right_shoulder = pL[POSE_LANDMARKS.RIGHT_SHOULDER];
+
+      var is_stretch =  (calcAngle(left_shoulder,left_elbow,left_wrist).angle>=150);//腕を伸ばしているかどうか
+      var is_extended = (calcAngle(left_hip,left_shoulder,left_elbow).angle>=90)&&(calcAngle(left_hip,left_shoulder,left_elbow).angle<=130);//腕を広げているかどうか
+      var is_side = (calcAngle(right_shoulder,left_shoulder,left_elbow).angle>= 160)&&(calcAngle(right_shoulder,left_shoulder,left_elbow).angle<= 190);//前に手をあげてるかどうか
+
+      return is_stretch && is_extended && is_side;//腕が伸びていて、かつ、腕が広がっていたらよいとする
+    }
+
+    //5つ目の運動で使用
+    function right_arm_over(results){
+      const pL = results.poseWorldLandmarks;
+      const right_shoulder = pL[POSE_LANDMARKS.RIGHT_SHOULDER];
+      const right_elbow = pL[POSE_LANDMARKS.RIGHT_ELBOW];
+      const right_wrist = pL[POSE_LANDMARKS.RIGHT_WRIST];
+      const left_shoulder = pL[POSE_LANDMARKS.LEFT_SHOULDER];
+
+      var is_stretch = (calcAngle(right_shoulder,right_elbow,right_wrist).angle>=140);
+      var is_over = (right_wrist.x > left_shoulder.x && right_elbow.y < right_shoulder.y);
+
+      return is_stretch && is_over;
+    }
+
+    //5つ目の運動で使用
+    function left_arm_over(results){
+      const pL = results.poseWorldLandmarks;
+      const right_shoulder = pL[POSE_LANDMARKS.RIGHT_SHOULDER];
+      const right_elbow = pL[POSE_LANDMARKS.RIGHT_ELBOW];
+      const left_shoulder = pL[POSE_LANDMARKS.LEFT_SHOULDER];
+      const left_elbow = pL[POSE_LANDMARKS.LEFT_ELBOW];
+      const left_wrist = pL[POSE_LANDMARKS.LEFT_WRIST];
+
+      var is_stretch = (calcAngle(left_shoulder,left_elbow,left_wrist).angle>=140);
+      var is_over = (left_wrist.x < right_shoulder.x && left_elbow.y < left_shoulder.y);
+
+      return is_stretch && is_over;
+    }
+
+    //6つ目の運動で使用
+    function body_front(results){
+      const pL = results.poseWorldLandmarks;
+      const right_shoulder = pL[POSE_LANDMARKS.RIGHT_SHOULDER];
+      const right_wrist = pL[POSE_LANDMARKS.RIGHT_WRIST];
+      const right_hip = pL[POSE_LANDMARKS.RIGHT_HIP];
+      const right_knee = pL[POSE_LANDMARKS.RIGHT_KNEE];
+      const left_shoulder = pL[POSE_LANDMARKS.LEFT_SHOULDER];
+      const left_wrist = pL[POSE_LANDMARKS.LEFT_WRIST];
+      const left_hip = pL[POSE_LANDMARKS.LEFT_HIP];
+      const left_knee = pL[POSE_LANDMARKS.LEFT_KNEE];
+
+      var is_bent = (calcAngle(right_knee,right_hip,right_shoulder).angle<=90) && (calcAngle(left_knee,left_hip,left_shoulder).angle<=90);
+      var is_front = (right_wrist.y > right_knee.y) && (left_wrist.y > left_knee.y);
+
+      return is_bent && is_front;
+    }
+
+    //6つ目の運動で使用
+    function body_back(results){
+      const pL = results.poseWorldLandmarks;
+      const right_shoulder = pL[POSE_LANDMARKS.RIGHT_SHOULDER];
+      const right_elbow = pL[POSE_LANDMARKS.RIGHT_ELBOW];
+      const right_hip = pL[POSE_LANDMARKS.RIGHT_HIP];
+      const right_knee = pL[POSE_LANDMARKS.RIGHT_KNEE];
+      const left_shoulder = pL[POSE_LANDMARKS.LEFT_SHOULDER];
+      const left_elbow = pL[POSE_LANDMARKS.LEFT_ELBOW];
+      const left_hip = pL[POSE_LANDMARKS.LEFT_HIP];
+      const left_knee = pL[POSE_LANDMARKS.LEFT_KNEE];
+
+      var is_bent = (calcAngle(right_knee,right_hip,right_shoulder).angle<=160) && (calcAngle(left_knee,left_hip,left_shoulder).angle<=160);
+      var is_back = (right_shoulder.z > right_hip.z) && (left_shoulder.z > left_hip.z);
+
+      return is_bent && is_back;
+    }
+
+    /*function body_back2(results){
+      const pL = results.poseWorldLandmarks;
+      const right_shoulder = pL[POSE_LANDMARKS.RIGHT_SHOULDER];
+      const right_elbow = pL[POSE_LANDMARKS.RIGHT_ELBOW];
+      const right_hip = pL[POSE_LANDMARKS.RIGHT_HIP];
+      const right_knee = pL[POSE_LANDMARKS.RIGHT_KNEE];
+      const left_shoulder = pL[POSE_LANDMARKS.LEFT_SHOULDER];
+      const left_elbow = pL[POSE_LANDMARKS.LEFT_ELBOW];
+      const left_hip = pL[POSE_LANDMARKS.LEFT_HIP];
+      const left_knee = pL[POSE_LANDMARKS.LEFT_KNEE];
+
+      var is_bent = (calcAngle(right_knee,right_hip,right_shoulder).angle<=160) && (calcAngle(left_knee,left_hip,left_shoulder).angle<=160);
+      var is_top = (calcAngle(right_hip,right_shoulder,right_elbow).angle>=180)&&(calcAngle(left_hip,left_shoulder,left_elbow).angle>=180);//腕が真上にあるかどうか
+      var is_back = (right_shoulder.z > right_hip.z) && (left_shoulder.z > left_hip.z);
+
+      return is_bent && is_back;
+    }*/
+
+
+    //7つ目の運動で使用
+    function to_right(results){
+      const pL = results.poseWorldLandmarks;
+      const left_shoulder = pL[POSE_LANDMARKS.LEFT_SHOULDER];
+      const left_wrist = pL[POSE_LANDMARKS.LEFT_WRIST];
+      const right_hip = pL[POSE_LANDMARKS.RIGHT_HIP];
+      const left_knee = pL[POSE_LANDMARKS.LEFT_KNEE];
+
+      var shoulder = (left_shoulder.x < left_knee.x);
+      var wrist = (left_wrist.x < right_hip.x) &&(left_wrist.y > left_shoulder.y);
+      return shoulder && wrist;
+    }
+
+    //7つ目の運動で使用
+    function to_left(results){
+      const pL = results.poseWorldLandmarks;
+      const right_shoulder = pL[POSE_LANDMARKS.RIGHT_SHOULDER];
+      const right_wrist = pL[POSE_LANDMARKS.RIGHT_WRIST];
+      const left_hip = pL[POSE_LANDMARKS.LEFT_HIP];
+      const right_knee = pL[POSE_LANDMARKS.RIGHT_KNEE];
+
+      var shoulder = (right_shoulder.x > right_knee.x);
+      var wrist = (right_wrist.x > left_hip.x) &&(right_wrist.y > right_shoulder.y);
+      return shoulder && wrist;
+    }
+
+    //7つ目の運動で使用
+    function to_right_over(results){
+      const pL = results.poseWorldLandmarks;
+      const left_shoulder = pL[POSE_LANDMARKS.LEFT_SHOULDER];
+      const left_elbow = pL[POSE_LANDMARKS.LEFT_ELBOW];
+      const left_wrist = pL[POSE_LANDMARKS.LEFT_WRIST];
+      const right_hip = pL[POSE_LANDMARKS.RIGHT_HIP];
+      const left_hip = pL[POSE_LANDMARKS.LEFT_HIP];
+      const right_shoulder = pL[POSE_LANDMARKS.RIGHT_SHOULDER];
+      const right_elbow = pL[POSE_LANDMARKS.RIGHT_ELBOW];
+      const right_wrist = pL[POSE_LANDMARKS.RIGHT_WRIST];
+      const left_knee = pL[POSE_LANDMARKS.LEFT_KNEE];
+
+      var shoulder = (left_shoulder.x < left_knee.x);
+      var wrist = (calcAngle(left_hip,left_shoulder,left_elbow).angle>=120);
+      //var over = (left_wrist.y < right_shoulder.y) && (right_wrist.y < right_elbow.y);
+      return shoulder && wrist;
+    }
+
+    //7つ目の運動で使用
+    function to_left_over(results){
+      const pL = results.poseWorldLandmarks;
+      const left_shoulder = pL[POSE_LANDMARKS.LEFT_SHOULDER];
+      const left_elbow = pL[POSE_LANDMARKS.LEFT_ELBOW];
+      const left_wrist = pL[POSE_LANDMARKS.LEFT_WRIST];
+      const right_hip = pL[POSE_LANDMARKS.RIGHT_HIP];
+      const right_shoulder = pL[POSE_LANDMARKS.RIGHT_SHOULDER];
+      const right_elbow = pL[POSE_LANDMARKS.RIGHT_ELBOW];
+      const right_wrist = pL[POSE_LANDMARKS.RIGHT_WRIST];
+      const left_knee = pL[POSE_LANDMARKS.LEFT_KNEE];
+      const left_hip = pL[POSE_LANDMARKS.LEFT_HIP];
+      const right_knee = pL[POSE_LANDMARKS.RIGHT_KNEE];
+
+      var shoulder = (right_shoulder.x > right_knee.x);
+      var wrist = (calcAngle(right_hip,right_shoulder,right_elbow).angle>=120);
+      //var over = (right_wrist.y < left_shoulder.y) && (left_wrist.y < left_elbow.y);
+      return shoulder && wrist;
+    }
+
+    //8つ目の運動で使用、腕をあげて股を開く
+    function armsUp(results){
+      const pL = results.poseWorldLandmarks;
+      const left_knee = pL[POSE_LANDMARKS.LEFT_KNEE];
+      const left_hip = pL[POSE_LANDMARKS.LEFT_HIP];
+      const right_hip = pL[POSE_LANDMARKS.RIGHT_HIP];
+      const right_knee = pL[POSE_LANDMARKS.RIGHT_KNEE];
+
+      var is_arms_top = armsTop(results);
+      var is_open_legs = (right_hip.x > right_knee.x && left_hip.x < left_knee.x);
+
+      return is_arms_top && is_open_legs;
+    }
+
+    //8つ目の運動で使用、腕を下げる
+    function armsDown(results){
+      const pL = results.poseWorldLandmarks;
+      const left_shoulder = pL[POSE_LANDMARKS.LEFT_SHOULDER];
+      const left_elbow = pL[POSE_LANDMARKS.LEFT_ELBOW];
+      const left_hip = pL[POSE_LANDMARKS.LEFT_HIP];
+      const right_shoulder = pL[POSE_LANDMARKS.RIGHT_SHOULDER];
+      const right_elbow = pL[POSE_LANDMARKS.RIGHT_ELBOW];
+      const right_hip = pL[POSE_LANDMARKS.RIGHT_HIP];
+
+      var is_arms_bottom = (calcAngle(right_hip,right_shoulder,right_elbow).angle<=50)&&(calcAngle(left_hip,left_shoulder,left_elbow).angle<=50);//腕が下にあるかどうか
+
+      return is_arms_bottom;
+    }
+
+    //9つ目の運動で使用、体を右に倒す
+    function bodyRightFront(results){
+      const pL = results.poseWorldLandmarks;
+      const right_wrist = pL[POSE_LANDMARKS.RIGHT_WRIST];
+      const right_shoulder = pL[POSE_LANDMARKS.RIGHT_SHOULDER];
+      const right_knee = pL[POSE_LANDMARKS.RIGHT_KNEE];
+      const right_hip = pL[POSE_LANDMARKS.RIGHT_HIP];
+      const left_wrist = pL[POSE_LANDMARKS.LEFT_WRIST];
+      const left_shoulder = pL[POSE_LANDMARKS.LEFT_SHOULDER];
+      const left_knee = pL[POSE_LANDMARKS.LEFT_KNEE];
+      const left_hip = pL[POSE_LANDMARKS.LEFT_HIP];
+
+      var is_bent = (calcAngle(right_knee,right_hip,right_shoulder).angle<=110) && (calcAngle(left_knee,left_hip,left_shoulder).angle<=110);
+      var is_front = (right_wrist.y > right_knee.y) && (left_wrist.y > left_knee.y);
+      var is_body_front = is_bent && is_front
+      var is_right = (right_wrist.x<0 && left_wrist.x<0); //手が両方とも腰よりも右にあるか
+
+      return is_body_front && is_right;
+    }
+
+    //9つ目の運動で使用、体を左に倒す
+    function bodyLeftFront(results){
+      const pL = results.poseWorldLandmarks;
+      const right_wrist = pL[POSE_LANDMARKS.RIGHT_WRIST];
+      const right_shoulder = pL[POSE_LANDMARKS.RIGHT_SHOULDER];
+      const right_knee = pL[POSE_LANDMARKS.RIGHT_KNEE];
+      const right_hip = pL[POSE_LANDMARKS.RIGHT_HIP];
+      const left_wrist = pL[POSE_LANDMARKS.LEFT_WRIST];
+      const left_shoulder = pL[POSE_LANDMARKS.LEFT_SHOULDER];
+      const left_knee = pL[POSE_LANDMARKS.LEFT_KNEE];
+      const left_hip = pL[POSE_LANDMARKS.LEFT_HIP];
+
+
+      var is_bent = (calcAngle(right_knee,right_hip,right_shoulder).angle<=110) && (calcAngle(left_knee,left_hip,left_shoulder).angle<=110);
+      var is_front = (right_wrist.y > right_knee.y) && (left_wrist.y > left_knee.y);
+      var is_body_front = is_bent && is_front
+      var is_left = (right_wrist.x>0 && left_wrist.x>0); //手が両方とも腰よりも左にあるか
+
+      return is_body_front && is_left;
+    }
+
+    //9つ目の運動で使用、小の字に開いて胸を反らす
+    function bodyChestUp(results){
+      const pL = results.poseWorldLandmarks;
+      const right_shoulder = pL[POSE_LANDMARKS.RIGHT_SHOULDER];
+      const right_elbow = pL[POSE_LANDMARKS.RIGHT_ELBOW];
+      const right_wrist = pL[POSE_LANDMARKS.RIGHT_WRIST];
+      const right_hip = pL[POSE_LANDMARKS.RIGHT_HIP];
+      const right_knee = pL[POSE_LANDMARKS.RIGHT_KNEE];
+      const left_shoulder = pL[POSE_LANDMARKS.LEFT_SHOULDER];
+      const left_elbow = pL[POSE_LANDMARKS.LEFT_ELBOW];
+      const left_wrist = pL[POSE_LANDMARKS.LEFT_WRIST];
+      const left_hip = pL[POSE_LANDMARKS.LEFT_HIP];
+      const left_knee = pL[POSE_LANDMARKS.LEFT_KNEE];
+
+      //var chest_up = (right_shoulder.z > 0) && (left_shoulder.z > 0);
+      var is_stand = (calcAngle(right_knee,right_hip,right_shoulder).angle>=150)&&(calcAngle(left_knee,left_hip,left_shoulder).angle>=150);
+      var is_open_arms = (calcAngle(right_hip,right_shoulder,right_elbow).angle>=30)&&(calcAngle(left_hip,left_shoulder,left_elbow).angle>=30);//腕を少し広げているかどうか
+      var is_arms_spread = (right_elbow.x<right_shoulder.x) && (right_wrist.x<right_shoulder.x) && (left_elbow.x>left_shoulder.x) && (left_wrist.x>left_shoulder.x);//両手が外側に開いているか
+      var is_open_legs = (right_hip.x > right_knee.x && left_hip.x < left_knee.x);
+      return is_stand && is_open_arms && is_arms_spread && is_open_legs;
+    }
+
+    function jumping(results){
+      const pL = results.poseWorldLandmarks;
+      const right_shoulder = pL[POSE_LANDMARKS.RIGHT_SHOULDER];
+      const right_elbow = pL[POSE_LANDMARKS.RIGHT_ELBOW];
+      const right_wrist = pL[POSE_LANDMARKS.RIGHT_WRIST];
+      const right_hip = pL[POSE_LANDMARKS.RIGHT_HIP];
+      const right_knee = pL[POSE_LANDMARKS.RIGHT_KNEE];
+      const left_shoulder = pL[POSE_LANDMARKS.LEFT_SHOULDER];
+      const left_elbow = pL[POSE_LANDMARKS.LEFT_ELBOW];
+      const left_wrist = pL[POSE_LANDMARKS.LEFT_WRIST];
+      const left_hip = pL[POSE_LANDMARKS.LEFT_HIP];
+      const left_knee = pL[POSE_LANDMARKS.LEFT_KNEE];
+
+      var is_side = armsSide(results);
+      var is_open_legs = (right_hip.x > right_knee.x && left_hip.x < left_knee.x);
+
+      return is_side && is_open_legs;
+    }
+
+    //膝が曲がっているかどうかの計算
+    /*function kneeBent(results){
+      const pL = results.poseWorldLandmarks;
+      const right_hip = pL[POSE_LANDMARKS.RIGHT_HIP];
+      const right_knee = pL[POSE_LANDMARKS.RIGHT_KNEE];
+      const right_ankle = pL[POSE_LANDMARKS.RIGHT_ANKLE];
+      const left_hip = pL[POSE_LANDMARKS.LEFT_HIP];
+      const left_knee = pL[POSE_LANDMARKS.LEFT_KNEE];
+      const left_ankle = pL[POSE_LANDMARKS.LEFT_ANKLE];
+
+      var is_closed_heel =  (left_hip.x > left_ankle.x)&&(right_ankle.x > right_hip.x);//かかとが閉じているかどうか
+      var is_bent_knee = (calcAngle(right_hip,right_knee,right_ankle).angle<=160)&&(calcAngle(left_hip,left_knee,left_ankle).angle<=160);//膝が曲がっているかどうか
+      var is_outside = (calcAngle(left_hip, right_hip, right_knee).angle>=90)&&(calcAngle(right_hip, left_hip, left_knee).angle>=90);//外側に膝を開いているかどうか
+      return is_closed_heel && is_bent_knee && is_outside;//腕が伸びていて、かつ、腕が広がっていたらよいとする
+    }*/
+
+
+    var intervalID;
+
+    function Timer(){
+      count += 1;
+      //console.log(count);
+    }
+
+    function Counter(){
+      count2 += 1;
+    }
+
+    function Start(){
+      if(intervalID == null){
+      intervalID = setInterval(Timer, 1000);
+    }}
+
+    function StartCount(){
+      if(intervalID == null){
+      intervalID = setInterval(Counter, 1000);
+      }
+    }
+
+    function Reset(){
+      clearInterval(intervalID);
+      intervalID = null;
+      count = 0;
+    }
+
+    function ResetCount(){
+      clearInterval(intervalID);
+      intervalID = null;
+      count2 = 0;
+    }
+
+
+
+    //毎フレーム描画する関数
+    function onResults(results) {
+      if (!results.poseLandmarks) {
+        //grid.updateLandmarks([]);
+        return;
+      }
+
+      canvasCtx.save();
+      canvasCtx.clearRect(0, 0, canvasElement.width, canvasElement.height);
+      /*canvasCtx.drawImage(results.segmentationMask, 0, 0,
+                          canvasElement.width, canvasElement.height);*/
+
+      // Only overwrite existing pixels.
+      canvasCtx.globalCompositeOperation = 'source-in';
+      canvasCtx.fillStyle = '#00FF00';
+      canvasCtx.fillRect(0, 0, canvasElement.width, canvasElement.height);
+
+      // Only overwrite missing pixels.
+      canvasCtx.globalCompositeOperation = 'destination-atop';
+      canvasCtx.drawImage(
+          results.image, 0, 0, canvasElement.width, canvasElement.height);
+
+      canvasCtx.globalCompositeOperation = 'source-over';
+      drawConnectors(canvasCtx, results.poseLandmarks, POSE_CONNECTIONS,
+                     {color: '#00FF00', lineWidth: 4});
+      drawLandmarks(canvasCtx, results.poseLandmarks,
+                    {color: '#FF0000', lineWidth: 2});
+      canvasCtx.restore();
+
+      //ここらへんで自分の関数の処理や音声の再生をしている、描画もやろうと思えばできるよ
+      //var time="<h1>経過時間:"+count+"</h1>";
+      //angleElement.innerHTML = time;
+      countElement.innerHTML = "<font size = 5><p>時間:"+count+"s</p><br>合計:"+total+"/64回</br><br>背伸びの運動:"+top_count+"/2回</br><br>腕と脚の運動:"+side_count+"/8回</br><br>腕を回す運動:"+circle_count+"/8回</br><br>胸の運動:"+X_count+"/4回</br><br>横に曲げる運動:"+arms_over+"/8回</br><br>前後に曲げる運動:"+back_count+"/2回</br><br>ねじる運動:"+to_lr_count+"/4回</br><br>上下に伸ばす運動:"+up_down_count+"/4回</br><br>胸を反らす運動:"+chest_count+"/4回</br><br>大きく回す運動:"+cycle_count+"/4回</br><br>飛び跳ねる運動:"+jump_count+"/4回</br><br>腕と脚の運動:"+side_count2+"/8回</br><br>深呼吸:"+breath_count+"/4回</br></font>";
+      //sideElement.innerHTML = "<h1>横"+side_count+"回</h1>";
+      //crossElement.innerHTML = "<h1>回し"+circle_count+"回</h1>";
+
+      
+
+      if(!flag_announce){//運動を始める前のアナウンス
+        let SE;
+        SE = SE["check"];
+        SE.currentTime = 0;
+        SE.play();
+        //SE["announce"].currentTime = 0;
+        //SE["announce"].play();
+        flag_announce = true;
+      }
+
+      /*if(result == 0 && armsTop(results)){
+        flag_check = true;
+      }*/
+      
+      
+      /*if(results.poseWorldLandmarks[POSE_LANDMARKS.LEFT_ANKLE].visibility < 0.8 || results.poseWorldLandmarks[POSE_LANDMARKS.RIGHT_ANKLE].visibility < 0.8){
+        SE["attention"].currentTime = 0;
+        SE["attention"].play();
+      }*/
+      
+      
+      //足首のvisibilityで全身が映っているか判定、アナウンスの2秒後に音楽スタート
+      //この辺もっと上手くできると思うんですけど、僕のスキルじゃこれが限界でした
+      
+      
+        /*if(results.poseWorldLandmarks[POSE_LANDMARKS.LEFT_ANKLE].visibility < 0.8 || results.poseWorldLandmarks[POSE_LANDMARKS.RIGHT_ANKLE].visibility < 0.8){
+          flag_check = false;
+        }*/
+
+        if(count == 0 && !flag_check && results.poseWorldLandmarks[POSE_LANDMARKS.LEFT_ANKLE].visibility > 0.8 && results.poseWorldLandmarks[POSE_LANDMARKS.RIGHT_ANKLE].visibility > 0.8){
+          flag_check = true;
+          let SE;
+          SE = SE["check"];
+          SE.currentTime = 0;
+          SE.play();
+          //SE["check"].currentTime = 0;
+          //SE["check"].play();
+        }
+      
+
+      if(flag_check && armsSide(results) && count == 0){
+        if(results.poseWorldLandmarks[POSE_LANDMARKS.LEFT_WRIST].visibility < 0.8){
+          flag_left_check = false;
+        }
+        if(results.poseWorldLandmarks[POSE_LANDMARKS.RIGHT_WRIST].visibility < 0.8){
+          flag_right_check = false;
+        }
+        if(!flag_left_check && !flag_right_check && results.poseWorldLandmarks[POSE_LANDMARKS.LEFT_WRIST].visibility > 0.8 && results.poseWorldLandmarks[POSE_LANDMARKS.RIGHT_WRIST].visibility > 0.8){
+          flag_left_check = true;
+          flag_right_check = true;
+          SE["kiwotsuke"].currentTime = 0;
+          SE["kiwotsuke"].play();
+        }
+      }
+
+      if(!flag_go && flag_left_check && flag_right_check && Standard(results)){
+        flag_go = true;
+        SE["START"].currentTime = 0;
+        SE["START"].play();
+        Start();
+      }
+
+      if(!flag_music && count == 2){
+        flag_music = true;
+        SE["radio"].currentTime = 0;
+        SE["radio"].play();
+      }
+      
+      /*if(flag){ //jキーを押したら音楽とタイムカウントスタート
+        SE["radio"].currentTime = 0;
+        SE["radio"].play();
+        //Start();
+        flag = false;
+      }*/
+
+      if(count == 196){
+        SE["otsukare"].currentTime = 0;
+        SE["otsukare"].play();
+      }
+
+      if(flag1 && result == 0){//jキーを押したらタイムカウントストップ　結果の提示を開始
+        Reset();
+        SE["score"].currentTime = 0;
+        SE["score"].play();
+        flag1 = false;
+        result += 1;
+      }
+      if(flag1 && result == 1){
+        if(total >= 0 && total <= 2){
+          SE["zero"].currentTime = 0;
+          SE["zero"].play();
+          flag1 = false;
+        }
+        if(total >= 3 && total <= 5){
+          SE["five"].currentTime = 0;
+          SE["five"].play();
+          flag1 = false;
+        }
+        if(total >= 6 && total <= 8){
+          SE["ten"].currentTime = 0;
+          SE["ten"].play();
+          flag1 = false;
+        }
+        if(total >= 9 && total <= 11){
+          SE["fifteen"].currentTime = 0;
+          SE["fifteen"].play();
+          flag1 = false;
+        }
+        if(total >= 12 && total <= 14){
+          SE["twenty"].currentTime = 0;
+          SE["twenty"].play();
+          flag1 = false;
+        }
+        if(total >= 15 && total <= 17){
+          SE["twentyF"].currentTime = 0;
+          SE["twentyF"].play();
+          flag1 = false;
+        }
+        if(total >=18  && total <= 20){
+          SE["thirty"].currentTime = 0;
+          SE["thirty"].play();
+          flag1 = false;
+        }
+        if(total >= 21 && total <= 23){
+          SE["thirtyF"].currentTime = 0;
+          SE["thirtyF"].play();
+          flag1 = false;
+        }
+        if(total >= 24 && total <= 27){
+          SE["forty"].currentTime = 0;
+          SE["forty"].play();
+          flag1 = false;
+        }
+        if(total >= 28 && total <= 30){
+          SE["fortyF"].currentTime = 0;
+          SE["fortyF"].play();
+          flag1 = false;
+        }
+        if(total >= 31 && total <= 33){
+          SE["fifty"].currentTime = 0;
+          SE["fifty"].play();
+          flag1 = false;
+        }
+        if(total >= 34 && total <= 36){
+          SE["fiftyF"].currentTime = 0;
+          SE["fiftyF"].play();
+          flag1 = false;
+        }
+        if(total >= 37 && total <= 39){
+          SE["sixty"].currentTime = 0;
+          SE["sixty"].play();
+          flag1 = false;
+        }
+        if(total >= 40 && total <= 43){
+          SE["sixtyF"].currentTime = 0;
+          SE["sixtyF"].play();
+          flag1 = false;
+        }
+        if(total >= 44 && total <= 46){
+          SE["seventy"].currentTime = 0;
+          SE["seventy"].play();
+          flag1 = false;
+        }
+        if(total >= 47 && total <= 49){
+          SE["seventyF"].currentTime = 0;
+          SE["seventyF"].play();
+          flag1 = false;
+        }
+        if(total >= 50 && total <= 52){
+          SE["eighty"].currentTime = 0;
+          SE["eighty"].play();
+          flag1 = false;
+        }
+        if(total >= 53 && total <= 55){
+          SE["eightyF"].currentTime = 0;
+          SE["eightyF"].play();
+          flag1 = false;
+        }
+        if(total >= 56 && total <= 59){
+          SE["ninety"].currentTime = 0;
+          SE["ninety"].play();
+          flag1 = false;
+        }
+        if(total >= 60 && total <= 63){
+          SE["ninetyF"].currentTime = 0;
+          SE["ninetyF"].play();
+          flag1 = false;
+        }
+        if(total >= 64 ){
+          SE["hundred"].currentTime = 0;
+          SE["hundred"].play();
+          flag1 = false;
+        }
+        result += 1;
+      }
+      if(flag1 && result == 2){
+        SE["nobi_result"].currentTime = 0;
+        SE["nobi_result"].play();//伸びの運動
+        flag1 = false;
+        result += 1;
+      }
+      if(flag1 && result == 3){
+        if(top_count == 2){
+          SE["success2"].currentTime = 0;
+          SE["success2"].play();//100点
+        }
+        if(top_count == 1){
+          SE["success1"].currentTime = 0;
+          SE["success1"].play();//50点
+        }
+        if(top_count == 0){
+          SE["success0"].currentTime = 0;
+          SE["success0"].play();//0点
+        }
+        flag1 = false;
+        result += 1;
+      }
+      if(flag1 && result == 4){
+        SE["udeashi_result"].currentTime = 0;
+        SE["udeashi_result"].play();//腕と脚の運動
+        flag1 = false;
+        result += 1;
+      }
+      if(flag1 && result == 5){
+        if(side_count >= 8){
+          SE["success8"].currentTime = 0;
+          SE["success8"].play();//100点
+        }
+        if(side_count == 7){
+          SE["success7"].currentTime = 0;
+          SE["success7"].play();//50点
+        }
+        if(side_count == 6){
+          SE["success6"].currentTime = 0;
+          SE["success6"].play();//50点
+        }
+        if(side_count == 5){
+          SE["success5"].currentTime = 0;
+          SE["success5"].play();//50点
+        }
+        if(side_count == 4){
+          SE["success4"].currentTime = 0;
+          SE["success4"].play();//50点
+        }
+        if(side_count == 3){
+          SE["success3"].currentTime = 0;
+          SE["success3"].play();//50点
+        }
+        if(side_count == 2){
+          SE["success2"].currentTime = 0;
+          SE["success2"].play();//50点
+        }
+        if(side_count == 1){
+          SE["success1"].currentTime = 0;
+          SE["success1"].play();//50点
+        }
+        if(side_count ==0){
+          SE["success0"].currentTime = 0;
+          SE["success0"].play();//0点
+        }
+        flag1 = false;
+        result += 1;
+      }
+      if(flag1 && result == 6){
+        SE["udemawashi_result"].currentTime = 0;
+        SE["udemawashi_result"].play();//腕と脚の運動
+        flag1 = false;
+        result += 1;
+      }
+      if(flag1 && result == 7){
+        if(circle_count >= 8){
+          SE["success8"].currentTime = 0;
+          SE["success8"].play();//100点
+        }
+        if(circle_count == 7){
+          SE["success7"].currentTime = 0;
+          SE["success7"].play();//50点
+        }
+        if(circle_count == 6){
+          SE["success6"].currentTime = 0;
+          SE["success6"].play();//50点
+        }
+        if(circle_count == 5){
+          SE["success5"].currentTime = 0;
+          SE["success5"].play();//50点
+        }
+        if(circle_count == 4){
+          SE["success4"].currentTime = 0;
+          SE["success4"].play();//50点
+        }
+        if(circle_count == 3){
+          SE["success3"].currentTime = 0;
+          SE["success3"].play();//50点
+        }
+        if(circle_count == 2){
+          SE["success2"].currentTime = 0;
+          SE["success2"].play();//50点
+        }
+        if(circle_count == 1){
+          SE["success1"].currentTime = 0;
+          SE["success1"].play();//50点
+        }
+        if(circle_count ==0){
+          SE["success0"].currentTime = 0;
+          SE["success0"].play();//0点
+        }
+        flag1 = false;
+        result += 1;
+      }
+      if(flag1 && result == 8){
+        SE["mune_result"].currentTime = 0;
+        SE["mune_result"].play();
+        flag1 = false;
+        result += 1;
+      }
+      if(flag1 && result == 9){
+        if(X_count >= 4){
+          SE["success4"].currentTime = 0;
+          SE["success4"].play();//100点
+        }
+        if(X_count == 3){
+          SE["success3"].currentTime = 0;
+          SE["success3"].play();//50点
+        }
+        if(X_count == 2){
+          SE["success2"].currentTime = 0;
+          SE["success2"].play();//50点
+        }
+        if(X_count == 1){
+          SE["success1"].currentTime = 0;
+          SE["success1"].play();//50点
+        }
+        if(X_count == 0){
+          SE["success0"].currentTime = 0;
+          SE["success0"].play();//0点
+        }
+        flag1 = false;
+        result += 1;
+      }
+      if(flag1 && result == 10){
+        SE["yoko_result"].currentTime = 0;
+        SE["yoko_result"].play();
+        flag1 = false;
+        result += 1;
+      }
+      if(flag1 && result == 11){
+        if(arms_over >= 8){
+          SE["success8"].currentTime = 0;
+          SE["success8"].play();//100点
+        }
+        if(arms_over == 7){
+          SE["success7"].currentTime = 0;
+          SE["success7"].play();//1ミス
+        }
+        if(arms_over == 6){
+          SE["success6"].currentTime = 0;
+          SE["success6"].play();//2ミス
+        }
+        if(arms_over == 5){
+          SE["success5"].currentTime = 0;
+          SE["success5"].play();//3ミス
+        }
+        if(arms_over == 4){
+          SE["success4"].currentTime = 0;
+          SE["success4"].play();//50点
+        }
+        if(arms_over == 3){
+          SE["success3"].currentTime = 0;
+          SE["success3"].play();//5ミス
+        }
+        if(arms_over == 2){
+          SE["success2"].currentTime = 0;
+          SE["success2"].play();//6ミス
+        }
+        if(arms_over == 1){
+          SE["success1"].currentTime = 0;
+          SE["success1"].play();//7ミス
+        }
+        if(arms_over == 0){
+          SE["success0"].currentTime = 0;
+          SE["success0"].play();//0点
+        }
+        flag1 = false;
+        result += 1;
+      }
+      if(flag1 && result == 12){
+        SE["zengo_result"].currentTime = 0;
+        SE["zengo_result"].play();
+        flag1 = false;
+        result += 1;
+      }
+      if(flag1 && result == 13){
+        if(back_count >= 2){
+          SE["success2"].currentTime = 0;
+          SE["success2"].play();//100点
+        }
+        if(back_count == 1){
+          SE["success1"].currentTime = 0;
+          SE["success1"].play();//50点
+        }
+        if(back_count == 0){
+          SE["success0"].currentTime = 0;
+          SE["success0"].play();//0点
+        }
+        flag1 = false;
+        result += 1;
+      }
+      if(flag1 && result == 14){
+        SE["nejiri_result"].currentTime = 0;
+        SE["nejiri_result"].play();
+        flag1 = false;
+        result += 1;
+      }
+      if(flag1 && result == 15){
+        if(to_lr_count >= 4){
+          SE["success4"].currentTime = 0;
+          SE["success4"].play();//100点
+        }
+        if(to_lr_count == 3){
+          SE["success3"].currentTime = 0;
+          SE["success3"].play();//50点
+        }
+        if(to_lr_count == 2){
+          SE["success2"].currentTime = 0;
+          SE["success2"].play();//50点
+        }
+        if(to_lr_count == 1){
+          SE["success1"].currentTime = 0;
+          SE["success1"].play();//50点
+        }
+        if(to_lr_count == 0){
+          SE["success0"].currentTime = 0;
+          SE["success0"].play();//0点
+        }
+        flag1 = false;
+        result += 1;
+      }
+      if(flag1 && result == 16){
+        SE["joge_result"].currentTime = 0;
+        SE["joge_result"].play();
+        flag1 = false;
+        result += 1;
+      }
+      if(flag1 && result == 17){
+        if(up_down_count >= 4){
+          SE["success4"].currentTime = 0;
+          SE["success4"].play();//100点
+        }
+        if(up_down_count == 3){
+          SE["success3"].currentTime = 0;
+          SE["success3"].play();//50点
+        }
+        if(up_down_count == 2){
+          SE["success2"].currentTime = 0;
+          SE["success2"].play();//50点
+        }
+        if(up_down_count == 1){
+          SE["success1"].currentTime = 0;
+          SE["success1"].play();//50点
+        }
+        if(up_down_count == 0){
+          SE["success0"].currentTime = 0;
+          SE["success0"].play();//0点
+        }
+        flag1 = false;
+        result += 1;
+      }
+      if(flag1 && result == 18){
+        SE["munehiraki_result"].currentTime = 0;
+        SE["munehiraki_result"].play();
+        flag1 = false;
+        result += 1;
+      }
+      if(flag1 && result == 19){
+        if(chest_count >= 4){
+          SE["success4"].currentTime = 0;
+          SE["success4"].play();//100点
+        }
+        if(chest_count == 3){
+          SE["success3"].currentTime = 0;
+          SE["success3"].play();//50点
+        }
+        if(chest_count == 2){
+          SE["success2"].currentTime = 0;
+          SE["success2"].play();//50点
+        }
+        if(chest_count == 1){
+          SE["success1"].currentTime = 0;
+          SE["success1"].play();//50点
+        }
+        if(chest_count == 0){
+          SE["success0"].currentTime = 0;
+          SE["success0"].play();//0点
+        }
+        flag1 = false;
+        result += 1;
+      }
+      if(flag1 && result == 20){
+        SE["cycle_result"].currentTime = 0;
+        SE["cycle_result"].play();
+        flag1 = false;
+        result += 1;
+      }
+      if(flag1 && result == 21){
+        if(cycle_count >= 4){
+          SE["success4"].currentTime = 0;
+          SE["success4"].play();//100点
+        }
+        if(cycle_count == 3){
+          SE["success3"].currentTime = 0;
+          SE["success3"].play();//50点
+        }
+        if(cycle_count == 2){
+          SE["success2"].currentTime = 0;
+          SE["success2"].play();//50点
+        }
+        if(cycle_count == 1){
+          SE["success1"].currentTime = 0;
+          SE["success1"].play();//50点
+        }
+        if(cycle_count == 0){
+          SE["success0"].currentTime = 0;
+          SE["success0"].play();//0点
+        }
+        flag1 = false;
+        result += 1;
+      }
+      if(flag1 && result == 22){
+        SE["jump_result"].currentTime = 0;
+        SE["jump_result"].play();
+        flag1 = false;
+        result += 1;
+      }
+      if(flag1 && result == 23){
+        if(jump_count >= 4){
+          SE["success4"].currentTime = 0;
+          SE["success4"].play();//100点
+        }
+        if(jump_count == 3){
+          SE["success3"].currentTime = 0;
+          SE["success3"].play();//50点
+        }
+        if(jump_count == 2){
+          SE["success2"].currentTime = 0;
+          SE["success2"].play();//50点
+        }
+        if(jump_count == 1){
+          SE["success1"].currentTime = 0;
+          SE["success1"].play();//50点
+        }
+        if(jump_count == 0){
+          SE["success0"].currentTime = 0;
+          SE["success0"].play();//0点
+        }
+        flag1 = false;
+        result += 1;
+      }
+      if(flag1 && result == 24){
+        SE["udeashi_result"].currentTime = 0;
+        SE["udeashi_result"].play();
+        flag1 = false;
+        result += 1;
+      }
+      if(flag1 && result == 25){
+        if(side_count2 >= 8){
+          SE["success8"].currentTime = 0;
+          SE["success8"].play();//100点
+        }
+        if(side_count2 == 7){
+          SE["success7"].currentTime = 0;
+          SE["success7"].play();//50点
+        }
+        if(side_count2 == 6){
+          SE["success6"].currentTime = 0;
+          SE["success6"].play();//50点
+        }
+        if(side_count2 == 5){
+          SE["success5"].currentTime = 0;
+          SE["success5"].play();//50点
+        }
+        if(side_count2 == 4){
+          SE["success4"].currentTime = 0;
+          SE["success4"].play();//50点
+        }
+        if(side_count2 == 3){
+          SE["success3"].currentTime = 0;
+          SE["success3"].play();//50点
+        }
+        if(side_count2 == 2){
+          SE["success2"].currentTime = 0;
+          SE["success2"].play();//50点
+        }
+        if(side_count2 == 1){
+          SE["success1"].currentTime = 0;
+          SE["success1"].play();//50点
+        }
+        if(side_count2 == 0){
+          SE["success0"].currentTime = 0;
+          SE["success0"].play();//0点
+        }
+        flag1 = false;
+        result += 1;
+      }
+      if(flag1 && result == 26){
+        SE["breath_result"].currentTime = 0;
+        SE["breath_result"].play();
+        flag1 = false;
+        result += 1;
+      }
+      if(flag1 && result == 27){
+        if(breath_count >= 4){
+          SE["success4"].currentTime = 0;
+          SE["success4"].play();//100点
+        }
+        if(breath_count == 3){
+          SE["success3"].currentTime = 0;
+          SE["success3"].play();//50点
+        }
+        if(breath_count == 2){
+          SE["success2"].currentTime = 0;
+          SE["success2"].play();//50点
+        }
+        if(breath_count == 1){
+          SE["success1"].currentTime = 0;
+          SE["success1"].play();//50点
+        }
+        if(breath_count == 0){
+          SE["success0"].currentTime = 0;
+          SE["success0"].play();//0点
+        }
+        flag1 = false;
+        result += 1;
+      }
+      if(flag1 && result == 28){
+        SE["otsukare2"].currentTime = 0;
+        SE["otsukare2"].play();
+        flag1 = false;
+        result += 1;
+      }
+      if(flag1 && result == 29){
+        total = 0;
+        top_count = 0;
+        side_count = 0;
+        circle_count = 0;
+        X_count = 0;
+        arms_over = 0;
+        back_count = 0;
+        to_lr_count = 0;
+        up_down_count = 0;
+        chest_count = 0;
+        cycle_count = 0;
+        jump_count = 0;
+        side_count2 = 0;
+        breath_count = 0;
+        flag1 = false;
+        flag_announce = false;
+        flag_check = false;
+        flag_left_check = false;
+        flag_right_check = false;
+        flag_go = false;
+        flag_music = false;
+        result = 0;
+      }
+
+
+      /*if(flag1){
+        total = 0;
+        top_count = 0;
+        side_count = 0;
+        circle_count = 0;
+        X_count = 0;
+        arms_over = 0;
+        back_count = 0;
+        to_lr_count = 0;
+        up_down_count = 0;
+        chest_count = 0;
+        cycle_count = 0;
+        jump_count = 0;
+        side_count2 = 0;
+        breath_count = 0;
+        flag1 = false;
+        flag_announce = false;
+        flag_check = false;
+        flag_left_check = false;
+        flag_right_check = false;
+        flag_go = false;
+        flag_music = false;
+        Reset();
+        ResetCount();
+        
+      }
+
+
+      //自動再生にする方
+      if(flag && result == 0){//jキーを押したら　結果の自動提示を開始
+        Reset();
+        StartCount();
+        SE["score"].currentTime = 0;
+        SE["score"].play();
+        flag = false;
+      }
+      if(count2 == 2 && result == 0){
+        result += 1;
+        if(total >= 0 && total <= 2){
+          SE["zero"].currentTime = 0;
+          SE["zero"].play();
+        }
+        if(total >= 3 && total <= 5){
+          SE["five"].currentTime = 0;
+          SE["five"].play();
+        }
+        if(total >= 6 && total <= 8){
+          SE["ten"].currentTime = 0;
+          SE["ten"].play();
+        }
+        if(total >= 9 && total <= 11){
+          SE["fifteen"].currentTime = 0;
+          SE["fifteen"].play();
+        }
+        if(total >= 12 && total <= 14){
+          SE["twenty"].currentTime = 0;
+          SE["twenty"].play();
+        }
+        if(total >= 15 && total <= 17){
+          SE["twentyF"].currentTime = 0;
+          SE["twentyF"].play();
+        }
+        if(total >=18  && total <= 20){
+          SE["thirty"].currentTime = 0;
+          SE["thirty"].play();
+        }
+        if(total >= 21 && total <= 23){
+          SE["thirtyF"].currentTime = 0;
+          SE["thirtyF"].play();
+        }
+        if(total >= 24 && total <= 27){
+          SE["forty"].currentTime = 0;
+          SE["forty"].play();
+        }
+        if(total >= 28 && total <= 30){
+          SE["fortyF"].currentTime = 0;
+          SE["fortyF"].play();
+        }
+        if(total >= 31 && total <= 33){
+          SE["fifty"].currentTime = 0;
+          SE["fifty"].play();
+        }
+        if(total >= 34 && total <= 36){
+          SE["fiftyF"].currentTime = 0;
+          SE["fiftyF"].play();
+        }
+        if(total >= 37 && total <= 39){
+          SE["sixty"].currentTime = 0;
+          SE["sixty"].play();
+        }
+        if(total >= 40 && total <= 43){
+          SE["sixtyF"].currentTime = 0;
+          SE["sixtyF"].play();
+        }
+        if(total >= 44 && total <= 46){
+          SE["seventy"].currentTime = 0;
+          SE["seventy"].play();
+        }
+        if(total >= 47 && total <= 49){
+          SE["seventyF"].currentTime = 0;
+          SE["seventyF"].play();
+        }
+        if(total >= 50 && total <= 52){
+          SE["eighty"].currentTime = 0;
+          SE["eighty"].play();
+        }
+        if(total >= 53 && total <= 55){
+          SE["eightyF"].currentTime = 0;
+          SE["eightyF"].play();
+        }
+        if(total >= 56 && total <= 59){
+          SE["ninety"].currentTime = 0;
+          SE["ninety"].play();
+        }
+        if(total >= 60 && total <= 63){
+          SE["ninetyF"].currentTime = 0;
+          SE["ninetyF"].play();
+        }
+        if(total >= 64 ){
+          SE["hundred"].currentTime = 0;
+          SE["hundred"].play();
+        }
+      }
+      if(count2 == 5 && result == 1){
+        result += 1;
+        SE["nobi_result"].currentTime = 0;
+        SE["nobi_result"].play();//伸びの運動
+      }
+      if(count2 == 8 && result == 2){
+        result += 1;        
+          if(top_count == 2){
+          SE["success2"].currentTime = 0;
+          SE["success2"].play();//100点
+        }
+        if(top_count == 1){
+          SE["success1"].currentTime = 0;
+          SE["success1"].play();//50点
+        }
+        if(top_count == 0){
+          SE["success0"].currentTime = 0;
+          SE["success0"].play();//0点
+        }
+      }
+      if(count2 == 10 && result == 3){
+        result += 1;
+        SE["udeashi_result"].currentTime = 0;
+        SE["udeashi_result"].play();//腕と脚の運動
+      }
+      if(count2 == 13 && result == 4){
+        result += 1;
+        if(side_count >= 8){
+          SE["success8"].currentTime = 0;
+          SE["success8"].play();//100点
+        }
+        if(side_count == 7){
+          SE["success7"].currentTime = 0;
+          SE["success7"].play();//50点
+        }
+        if(side_count == 6){
+          SE["success6"].currentTime = 0;
+          SE["success6"].play();//50点
+        }
+        if(side_count == 5){
+          SE["success5"].currentTime = 0;
+          SE["success5"].play();//50点
+        }
+        if(side_count == 4){
+          SE["success4"].currentTime = 0;
+          SE["success4"].play();//50点
+        }
+        if(side_count == 3){
+          SE["success3"].currentTime = 0;
+          SE["success3"].play();//50点
+        }
+        if(side_count == 2){
+          SE["success2"].currentTime = 0;
+          SE["success2"].play();//50点
+        }
+        if(side_count == 1){
+          SE["success1"].currentTime = 0;
+          SE["success1"].play();//50点
+        }
+        if(side_count ==0){
+          SE["success0"].currentTime = 0;
+          SE["success0"].play();//0点
+        }
+      }
+      if(count2 == 15 && result == 5){
+        result += 1;
+        SE["udemawashi_result"].currentTime = 0;
+        SE["udemawashi_result"].play();//腕と脚の運動
+      }
+      if(count2 == 18 && result == 6){
+        result += 1;
+        if(circle_count >= 8){
+          SE["success8"].currentTime = 0;
+          SE["success8"].play();//100点
+        }
+        if(circle_count == 7){
+          SE["success7"].currentTime = 0;
+          SE["success7"].play();//50点
+        }
+        if(circle_count == 6){
+          SE["success6"].currentTime = 0;
+          SE["success6"].play();//50点
+        }
+        if(circle_count == 5){
+          SE["success5"].currentTime = 0;
+          SE["success5"].play();//50点
+        }
+        if(circle_count == 4){
+          SE["success4"].currentTime = 0;
+          SE["success4"].play();//50点
+        }
+        if(circle_count == 3){
+          SE["success3"].currentTime = 0;
+          SE["success3"].play();//50点
+        }
+        if(circle_count == 2){
+          SE["success2"].currentTime = 0;
+          SE["success2"].play();//50点
+        }
+        if(circle_count == 1){
+          SE["success1"].currentTime = 0;
+          SE["success1"].play();//50点
+        }
+        if(circle_count ==0){
+          SE["success0"].currentTime = 0;
+          SE["success0"].play();//0点
+        }
+      }
+      if(count2 == 20 && result == 7){
+        result += 1;
+        SE["mune_result"].currentTime = 0;
+        SE["mune_result"].play();
+      }
+      if(count2 == 23 && result == 8){
+        result += 1;
+        if(X_count >= 4){
+          SE["success4"].currentTime = 0;
+          SE["success4"].play();//100点
+        }
+        if(X_count == 3){
+          SE["success3"].currentTime = 0;
+          SE["success3"].play();//50点
+        }
+        if(X_count == 2){
+          SE["success2"].currentTime = 0;
+          SE["success2"].play();//50点
+        }
+        if(X_count == 1){
+          SE["success1"].currentTime = 0;
+          SE["success1"].play();//50点
+        }
+        if(X_count == 0){
+          SE["success0"].currentTime = 0;
+          SE["success0"].play();//0点
+        }
+      }
+      if(count2 == 25 && result == 9){
+        result += 1;
+        SE["yoko_result"].currentTime = 0;
+        SE["yoko_result"].play();
+      }
+      if(count2 == 29 && result == 10){
+        result += 1;
+        if(arms_over >= 8){
+          SE["success8"].currentTime = 0;
+          SE["success8"].play();//100点
+        }
+        if(arms_over == 7){
+          SE["success7"].currentTime = 0;
+          SE["success7"].play();//1ミス
+        }
+        if(arms_over == 6){
+          SE["success6"].currentTime = 0;
+          SE["success6"].play();//2ミス
+        }
+        if(arms_over == 5){
+          SE["success5"].currentTime = 0;
+          SE["success5"].play();//3ミス
+        }
+        if(arms_over == 4){
+          SE["success4"].currentTime = 0;
+          SE["success4"].play();//50点
+        }
+        if(arms_over == 3){
+          SE["success3"].currentTime = 0;
+          SE["success3"].play();//5ミス
+        }
+        if(arms_over == 2){
+          SE["success2"].currentTime = 0;
+          SE["success2"].play();//6ミス
+        }
+        if(arms_over == 1){
+          SE["success1"].currentTime = 0;
+          SE["success1"].play();//7ミス
+        }
+        if(arms_over == 0){
+          SE["success0"].currentTime = 0;
+          SE["success0"].play();//0点
+        }
+      }
+      if(count2 == 31 && result == 11){
+        result += 1;
+        SE["zengo_result"].currentTime = 0;
+        SE["zengo_result"].play();
+      }
+      if(count2 == 34 && result == 12){
+        result += 1;
+        if(back_count >= 2){
+          SE["success2"].currentTime = 0;
+          SE["success2"].play();//100点
+        }
+        if(back_count == 1){
+          SE["success1"].currentTime = 0;
+          SE["success1"].play();//50点
+        }
+        if(back_count == 0){
+          SE["success0"].currentTime = 0;
+          SE["success0"].play();//0点
+        }
+      }
+      if(count2 == 36 && result == 13){
+        result += 1;
+        SE["nejiri_result"].currentTime = 0;
+        SE["nejiri_result"].play();
+      }
+      if(count2 == 39 && result == 14){
+        result += 1;
+        if(to_lr_count >= 4){
+          SE["success4"].currentTime = 0;
+          SE["success4"].play();//100点
+        }
+        if(to_lr_count == 3){
+          SE["success3"].currentTime = 0;
+          SE["success3"].play();//50点
+        }
+        if(to_lr_count == 2){
+          SE["success2"].currentTime = 0;
+          SE["success2"].play();//50点
+        }
+        if(to_lr_count == 1){
+          SE["success1"].currentTime = 0;
+          SE["success1"].play();//50点
+        }
+        if(to_lr_count == 0){
+          SE["success0"].currentTime = 0;
+          SE["success0"].play();//0点
+        }
+      }
+      if(count2 == 41 && result == 15){
+        result += 1;
+        SE["joge_result"].currentTime = 0;
+        SE["joge_result"].play();
+      }
+      if(count2 == 45 && result == 16){
+        result += 1;
+        if(up_down_count >= 4){
+          SE["success4"].currentTime = 0;
+          SE["success4"].play();//100点
+        }
+        if(up_down_count == 3){
+          SE["success3"].currentTime = 0;
+          SE["success3"].play();//50点
+        }
+        if(up_down_count == 2){
+          SE["success2"].currentTime = 0;
+          SE["success2"].play();//50点
+        }
+        if(up_down_count == 1){
+          SE["success1"].currentTime = 0;
+          SE["success1"].play();//50点
+        }
+        if(up_down_count == 0){
+          SE["success0"].currentTime = 0;
+          SE["success0"].play();//0点
+        }
+      }
+      if(count2 == 47 && result == 17){
+        result += 1;
+        SE["munehiraki_result"].currentTime = 0;
+        SE["munehiraki_result"].play();
+      }
+      if(count2 == 52 && result == 18){
+        result += 1;
+        if(chest_count >= 4){
+          SE["success4"].currentTime = 0;
+          SE["success4"].play();//100点
+        }
+        if(chest_count == 3){
+          SE["success3"].currentTime = 0;
+          SE["success3"].play();//50点
+        }
+        if(chest_count == 2){
+          SE["success2"].currentTime = 0;
+          SE["success2"].play();//50点
+        }
+        if(chest_count == 1){
+          SE["success1"].currentTime = 0;
+          SE["success1"].play();//50点
+        }
+        if(chest_count == 0){
+          SE["success0"].currentTime = 0;
+          SE["success0"].play();//0点
+        }
+      }
+      if(count2 == 54 && result == 19){
+        result += 1;
+        SE["cycle_result"].currentTime = 0;
+        SE["cycle_result"].play();
+      }
+      if(count2 == 58 && result == 20){
+        result += 1;
+        if(cycle_count >= 4){
+          SE["success4"].currentTime = 0;
+          SE["success4"].play();//100点
+        }
+        if(cycle_count == 3){
+          SE["success3"].currentTime = 0;
+          SE["success3"].play();//50点
+        }
+        if(cycle_count == 2){
+          SE["success2"].currentTime = 0;
+          SE["success2"].play();//50点
+        }
+        if(cycle_count == 1){
+          SE["success1"].currentTime = 0;
+          SE["success1"].play();//50点
+        }
+        if(cycle_count == 0){
+          SE["success0"].currentTime = 0;
+          SE["success0"].play();//0点
+        }
+      }
+      if(count2 == 60 && result == 21){
+        result += 1;
+        SE["jump_result"].currentTime = 0;
+        SE["jump_result"].play();
+      }
+      if(count2 == 63 && result == 22){
+        result += 1;
+        if(jump_count >= 4){
+          SE["success4"].currentTime = 0;
+          SE["success4"].play();//100点
+        }
+        if(jump_count == 3){
+          SE["success3"].currentTime = 0;
+          SE["success3"].play();//50点
+        }
+        if(jump_count == 2){
+          SE["success2"].currentTime = 0;
+          SE["success2"].play();//50点
+        }
+        if(jump_count == 1){
+          SE["success1"].currentTime = 0;
+          SE["success1"].play();//50点
+        }
+        if(jump_count == 0){
+          SE["success0"].currentTime = 0;
+          SE["success0"].play();//0点
+        }
+      }
+      if(count2 == 65 && result == 23){
+        result += 1;
+        SE["udeashi_result"].currentTime = 0;
+        SE["udeashi_result"].play();
+      }
+      if(count2 == 68 && result == 24){
+        result += 1;
+        if(side_count2 >= 8){
+          SE["success8"].currentTime = 0;
+          SE["success8"].play();//100点
+        }
+        if(side_count2 == 7){
+          SE["success7"].currentTime = 0;
+          SE["success7"].play();//50点
+        }
+        if(side_count2 == 6){
+          SE["success6"].currentTime = 0;
+          SE["success6"].play();//50点
+        }
+        if(side_count2 == 5){
+          SE["success5"].currentTime = 0;
+          SE["success5"].play();//50点
+        }
+        if(side_count2 == 4){
+          SE["success4"].currentTime = 0;
+          SE["success4"].play();//50点
+        }
+        if(side_count2 == 3){
+          SE["success3"].currentTime = 0;
+          SE["success3"].play();//50点
+        }
+        if(side_count2 == 2){
+          SE["success2"].currentTime = 0;
+          SE["success2"].play();//50点
+        }
+        if(side_count2 == 1){
+          SE["success1"].currentTime = 0;
+          SE["success1"].play();//50点
+        }
+        if(side_count2 == 0){
+          SE["success0"].currentTime = 0;
+          SE["success0"].play();//0点
+        }
+      }
+      if(count2 == 70 && result == 25){
+        result += 1;
+        SE["breath_result"].currentTime = 0;
+        SE["breath_result"].play();
+      }
+      if(count2 == 73 && result == 26){
+        result += 1;
+        if(breath_count >= 4){
+          SE["success4"].currentTime = 0;
+          SE["success4"].play();//100点
+        }
+        if(breath_count == 3){
+          SE["success3"].currentTime = 0;
+          SE["success3"].play();//50点
+        }
+        if(breath_count == 2){
+          SE["success2"].currentTime = 0;
+          SE["success2"].play();//50点
+        }
+        if(breath_count == 1){
+          SE["success1"].currentTime = 0;
+          SE["success1"].play();//50点
+        }
+        if(breath_count == 0){
+          SE["success0"].currentTime = 0;
+          SE["success0"].play();//0点
+        }
+      }
+      if(count2 == 75 && result == 27){
+        result += 1;
+        SE["otsukare2"].currentTime = 0;
+        SE["otsukare2"].play();
+      }
+      if(count2 == 78 && result == 28){
+        ResetCount();
+        result = 0;
+      }*/
+
+      //変な挙動が怖いなら、countの右端は<にしていいと思う
+      //countの秒数があっているかどうかは確認してほしい　←　jキーを押した直後の1秒だけちょっと遅れる.その後は誤差無しといっても遜色なさそうです(目視で確認ですが……)
+      //countを1秒1カウントにするかどうかは考えた方がよさそう(例:0.1秒に1カウント,bgmに合わせたカウントなど,1秒1カウントだと16分割が大変そう) ← 0.1秒にしたら変な挙動を始めて上手くいかず……また、ラジオ体操の楽譜見たらテンポがコロコロ変わってて難しそうでした。。。
+      //もしくはcountとは別に、各運動開始時に0から始まる新しい秒数管理する変数を用意して管理するのもあり(好きなように実装してほしい)
+
+      /*if(armsUp(results)){
+        document.body.style.backgroundColor = 'green';
+      }else if(bodyRightFront(results) || bodyLeftFront(results)){
+        document.body.style.backgroundColor = 'yellow';
+      }else if(bodyChestUp(results)){
+        document.body.style.backgroundColor = 'blue';
+      }else{
+        document.body.style.backgroundColor = 'white';
+      }*/
+
+
+      if(count >= 13 && count <= 20){ //伸びの運動判定
+        var top = armsTop(results);
+        var side = armsSide(results);
+        //var training_state = 0;
+
+        /*if(training_state == 1 && side){  //秒数で区切ってやってみたんですが上手くいかず。。。運動中に通過する別の姿勢の判定を導入して、それを通過したらポイントとなる姿勢のフラグが下がるようにしました
+          training_state = 0;
+          flag_top = false;
+        }*/
+        if(side){ //腕が横を通ればフラグを下げる
+          flag_top = false;
+        }
+        //秒数による運動管理,多分運動状態と秒数をペアにしたObjectとか作って管理した方が良い
+        //判定しない秒数でtraining_stateを1,判定する秒数の始めに0にするとよさそう(改善案あるなら勝手に変えていいよ)
+        /*if(count==8 || count==12){
+          training_state = 0;
+        }
+        if((count>=10 && count<12) || count>=14){
+          training_state = 1;
+        }*/
+
+        /*if(top && training_state == 0 && !flag_top){//if(top && training_state == 0 && !flag_top){
+          training_state = 1;
+          flag_top = true;
+          top_count += 1;
+        }*/
+
+        
+
+        if(top && !flag_top && top_count < 2){//if(top && training_state == 0 && !flag_top){
+          flag_top = true;
+          top_count += 1;
+          total += 1;
+          SE["OK"].currentTime = 0;
+          SE["OK"].play();
+        }
+        /*if(!top && flag_top){
+          flag_top = false;
+        }*/
+
+      }
+
+
+      if(count >= 21 && count <= 35){ //腕と脚の運動判定
+        var side = armsSide(results);
+        var cross = armsCross(results);
+
+        if(cross){ //腕がクロスされたらフラグを下げる
+          flag_side = false;
+        }
+        if(side && !flag_side && side_count < 8){
+          flag_side = true;
+          side_count += 1;
+          total += 1;
+          SE["OK"].currentTime = 0;
+          SE["OK"].play();
+        }
+      }
+
+
+      if(count >= 35 && count <= 50){ //腕を回す運動判定
+        var circle_top = armsTop(results);
+        var cross = armsCross(results);
+
+        if(circle_top && !flag_top && circle_count < 8){
+          flag_top = true;
+          circle_count += 1;
+          total += 1;
+          SE["OK"].currentTime = 0;
+          SE["OK"].play();
+        }
+        if(cross){ //腕がクロスされたらフラグを下げる
+          flag_top = false;
+        }
+      }
+
+      if(count >= 50 && count <= 66){ //身体を広げる運動判定
+        var body_X = bodyX(results);
+        var cross = armsCross(results);
+
+        if(body_X && !flag_X && X_count < 4){
+          flag_X = true;
+          X_count += 1;
+          total += 1;
+          SE["OK"].currentTime = 0;
+          SE["OK"].play();
+        }
+        if(cross){ //クロスされたらフラグを下げる ここはarmsSideとかにしてもいいかも
+          flag_X = false;
+        }
+      }
+
+      if(count >= 66 && count <= 80){ //横を伸ばす運動判定
+        var right_arm = right_arm_over(results);
+        var left_arm = left_arm_over(results);
+        var right_down = right_arm_side(results);
+        var left_down = left_arm_side(results);
+
+        if((right_arm && !flag_arm && arms_over < 8) || (left_arm && !flag_arm && arms_over < 8)){
+          flag_arm = true;
+          arms_over += 1;
+          total += 1;
+          SE["OK"].currentTime = 0;
+          SE["OK"].play();
+        }
+        if(right_down || left_down){ //左右どちらかの腕が横に伸ばした状態になったらフラグを下げる
+          flag_arm = false;
+        }
+      }
+
+      if(count >= 81 && count <= 94){ //身体を反らす運動判定
+        var back = body_back(results);
+        var front = body_front(results);
+
+        if(back && !flag_back && back_count < 2){
+          flag_back = true;
+          back_count += 1;
+          total += 1;
+          SE["OK"].currentTime = 0;
+          SE["OK"].play();
+        }
+        if(front){ //身体を前屈したらフラグを下げる
+          flag_back = false;
+        }
+      }
+
+      if(count >= 94 && count <= 108){ //身体を左右にねじる運動判定
+        var ro = to_right_over(results);
+        var lo = to_left_over(results);
+        var r = to_right(results);
+        var l = to_left(results);
+        if((ro && !flag_lr && to_lr_count < 4) || (lo && !flag_lr && to_lr_count < 4)){
+          flag_lr = true;
+          to_lr_count += 1;
+          total += 1;
+          SE["OK"].currentTime = 0;
+          SE["OK"].play();
+        }
+        if(r || l){ //身体を左右どちらかに軽くねじったらフラグを下げる
+          flag_lr = false;
+        }
+      }
+
+      if(count >= 109 && count <= 123){ //腕を上下に伸ばす運動判定
+        var up = armsUp(results);
+        var down = armsDown(results);
+
+        if(up && !flag_up && up_down_count < 4){ //腕をあげて股を開いたら
+          flag_up = true;
+          up_down_count += 1;
+          total += 1;
+          SE["OK"].currentTime = 0;
+          SE["OK"].play();
+        }
+        if(down){ //腕を下げたらフラグを下げる
+          flag_up = false;
+        }
+      }
+
+      if(count >= 124 && count <= 138){ //体を斜め下に曲げ胸を反らす運動判定
+        var brf = bodyRightFront(results);
+        var blf = bodyLeftFront(results);
+        var chest = bodyChestUp(results);
+        if(brf || blf ){
+          flag_chest = false;
+        }
+        if(chest && !flag_chest && chest_count < 4){
+          flag_chest = true;
+          chest_count += 1;
+          total += 1;
+          SE["OK"].currentTime = 0;
+          SE["OK"].play();
+        }
+      }
+
+      if(count >= 139 && count <= 154){ //10個目以降もcount振っといたけど一応確認お願いね
+        var cycle = body_back(results);
+        var front = body_front(results);
+
+        if(cycle && !flag_cycle && cycle_count < 4){
+          flag_cycle = true;
+          cycle_count += 1;
+          total += 1;
+          SE["OK"].currentTime = 0;
+          SE["OK"].play();
+        }
+        if(front){
+          flag_cycle = false;
+        }
+      }
+
+      if(count >= 154 && count <= 164){ //11個目
+        var jump = jumping(results);
+        var down = armsDown(results);
+
+        if(down){
+          flag_jump = false;
+        }
+        if(jump && !flag_jump && jump_count < 4){
+          flag_jump = true;
+          jump_count += 1;
+          total += 1;
+          SE["OK"].currentTime = 0;
+          SE["OK"].play();
+        }
+      }
+
+      if(count >= 164 && count <= 179){ //12個目
+        var side = armsSide(results);
+        var cross = armsCross(results);
+
+        if(cross){ //腕がクロスされたらフラグを下げる
+          flag_side2 = false;
+        }
+        if(side && !flag_side2 && side_count2 < 8){
+          flag_side2 = true;
+          side_count2 += 1;
+          total += 1;
+          SE["OK"].currentTime = 0;
+          SE["OK"].play();
+        }
+      }
+
+      if(count >= 180 && count <= 196){ //13個目
+        var top = armsTop(results);
+        var side = armsSide(results);
+      
+        if(side){
+          flag_top2 = false;
+        }
+
+        if(top && !flag_top2 && breath_count < 4){
+          flag_top2 = true;
+          breath_count += 1;
+          total += 1;
+          SE["OK"].currentTime = 0;
+          SE["OK"].play();
+        }
+      }
+
+
+
+
+
+      //grid.updateLandmarks(results.poseWorldLandmarks);
+    }
+
+    const pose = new Pose({locateFile: (file) => {
+      return `https://cdn.jsdelivr.net/npm/@mediapipe/pose/${file}`;
+    }});
+    pose.setOptions({
+      modelComplexity: 1,
+      smoothLandmarks: true,
+      enableSegmentation: true,
+      smoothSegmentation: true,
+      minDetectionConfidence: 0.5,
+      minTrackingConfidence: 0.5
+    });
+
+    pose.onResults(onResults);
+
+
+    const camera = new Camera(videoElement, {
+      onFrame: async () => {
+        await pose.send({image: videoElement});
+      },
+      width: 1280,
+      height: 720
+    });
+    camera.start();
+</script>
