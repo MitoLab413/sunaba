@@ -761,12 +761,8 @@
       
 
       if(!flag_announce){//運動を始める前のアナウンス
-        let SE;
-        SE = SE["check"];
-        SE.currentTime = 0;
-        SE.play();
-        //SE["announce"].currentTime = 0;
-        //SE["announce"].play();
+        SE["announce"].currentTime = 0;
+        SE["announce"].play();
         flag_announce = true;
       }
 
@@ -791,12 +787,8 @@
 
         if(count == 0 && !flag_check && results.poseWorldLandmarks[POSE_LANDMARKS.LEFT_ANKLE].visibility > 0.8 && results.poseWorldLandmarks[POSE_LANDMARKS.RIGHT_ANKLE].visibility > 0.8){
           flag_check = true;
-          let SE;
-          SE = SE["check"];
-          SE.currentTime = 0;
-          SE.play();
-          //SE["check"].currentTime = 0;
-          //SE["check"].play();
+          SE["check"].currentTime = 0;
+          SE["check"].play();
         }
       
 
