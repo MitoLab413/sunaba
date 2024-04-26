@@ -127,6 +127,7 @@
       START:new Audio('SE/STARTannounce.mp3'),
       otsukare:new Audio('SE/otsukare.mp3'),
       otsukare2:new Audio('SE/otsukare2.mp3'),
+      ongen:new Audio('SE/ongen.mp3'),
     };
 
     //カウント
@@ -174,6 +175,7 @@
     var flag_jump = false;//ジャンプしたか
     var flag_side2 = false;
     var flag_top2 = false;
+    var flag_ongen = false;
 
     document.addEventListener('keydown', event => {
     // 変数eventの中身はKeyboardEventオブジェクト
@@ -229,6 +231,19 @@
       }
       return sign*Math.round(Math.acos(costh)*180/Math.PI*1000)/1000;
     }
+    
+
+    function cameraAngle(results) {
+    var pL = results.poseWorldLandmarks;
+    var rh = POSE_LANDMARKS.RIGHT_KNEE;
+    var lh = POSE_LANDMARKS.LEFT_KNEE;
+    var vec = [pL[rh].x - pL[lh].x, pL[rh].y - pL[lh].y, pL[rh].z - pL[lh].z];
+    var vec_long = Math.sqrt(vec[0] ** 2 + vec[1] ** 2 + vec[2] ** 2);
+    var costh = vec[2] / vec_long; // Cosine of the angle between the vector and the vertical plane
+    var angleRad = Math.acos(costh); // Angle in radians between the vector and the vertical plane
+    var angleDeg = angleRad * (180 / Math.PI); // Convert radians to degrees
+    return Math.round(angleDeg * 1000) / 1000; // Round to 3 decimal places and return
+}
 
     //キーポイントを引数とした角度の計算
     function calcAngle(pose1,pose2,pose3){
@@ -1977,6 +1992,7 @@
         document.body.style.backgroundColor = 'white';
       }*/
 
+      var Cangle = cameraAngle(results);
 
       if(count >= 13 && count <= 20){ //伸びの運動判定
         var top = armsTop(results);
@@ -2103,6 +2119,18 @@
           flag_back = false;
         }
       }
+      if(count == 94){
+        if(!flag_ongen){
+          if(Cangle < 70 || Cangle > 110){
+            SE["ongen"].currentTime = 0;
+            SE["ongen"].play();
+            flag_ongen = true;
+          }
+        }
+      }
+      if(count == 95){
+        flag_ongen = false;
+      }
 
       if(count >= 94 && count <= 108){ //身体を左右にねじる運動判定
         var ro = to_right_over(results);
@@ -2119,6 +2147,19 @@
         if(r || l){ //身体を左右どちらかに軽くねじったらフラグを下げる
           flag_lr = false;
         }
+      }
+
+      if(count == 109){
+        if(!flag_ongen){
+          if(Cangle < 70 || Cangle > 110){
+            SE["ongen"].currentTime = 0;
+            SE["ongen"].play();
+            flag_ongen = true;
+          }
+        }
+      }
+      if(count == 110){
+        flag_ongen = false;
       }
 
       if(count >= 109 && count <= 123){ //腕を上下に伸ばす運動判定
@@ -2169,6 +2210,19 @@
         }
       }
 
+      if(count == 154){
+        if(!flag_ongen){
+          if(Cangle < 70 || Cangle > 110){
+            SE["ongen"].currentTime = 0;
+            SE["ongen"].play();
+            flag_ongen = true;
+          }
+        }
+      }
+      if(count == 155){
+        flag_ongen = false;
+      }
+
       if(count >= 154 && count <= 164){ //11個目
         var jump = jumping(results);
         var down = armsDown(results);
@@ -2183,6 +2237,19 @@
           SE["OK"].currentTime = 0;
           SE["OK"].play();
         }
+      }
+
+      if(count == 164){
+        if(!flag_ongen){
+          if(Cangle < 70 || Cangle > 110){
+            SE["ongen"].currentTime = 0;
+            SE["ongen"].play();
+            flag_ongen = true;
+          }
+        }
+      }
+      if(count == 165){
+        flag_ongen = false;
       }
 
       if(count >= 164 && count <= 179){ //12個目
