@@ -10,6 +10,12 @@
 </head>
 
 <body>
+  <div id="myModal" class="modal">
+    <div class="modal-content">
+        <p>音声を再生するためには許可が必要です。</p>
+        <button id="allowButton">許可する</button>
+    </div>
+  </div>
   <div class="container">
     <video hidden class="input_video"></video><!--入力映像-->
     <canvas class="output_canvas" width="1280px" height="720px"></canvas> <!--描画するキャンパス-->
@@ -25,6 +31,24 @@
   </div>
 </body>
 <style>
+  .modal {
+    display: none;
+    position: fixed;
+    z-index: 1;
+    left: 0;
+    top: 0;
+    width: 100%;
+    height: 100%;
+    background-color: rgba(0, 0, 0, 0.5);
+  }
+  .modal-content {
+    background-color: #fefefe;
+    margin: 15% auto;
+    padding: 20px;
+    border: 1px solid #888;
+    width: 80%;
+    text-align: center;
+    }
   .container{
     display: flex;
     max-width: 1200px;
@@ -55,6 +79,21 @@
 </html>
 
 <script type="module">
+
+    function showModal() {
+        var modal = document.getElementById("myModal");
+        modal.style.display = "block";
+    }
+
+    // ボタンにクリックイベントを追加
+    document.getElementById("allowButton").addEventListener("click", function() {
+        allowMusic();
+        // モーダルを非表示にする
+        document.getElementById("myModal").style.display = "none";
+        localStorage.setItem("audioPermission", "allowed");
+    });
+
+
     const videoElement = document.getElementsByClassName('input_video')[0];
     const canvasElement = document.getElementsByClassName('output_canvas')[0];
     const canvasCtx = canvasElement.getContext('2d');
@@ -176,6 +215,50 @@
     var flag_side2 = false;
     var flag_top2 = false;
     var flag_ongen = false;
+
+    //効果音を管理するための変数
+    let nowPlay = announce;
+    let flgMusic = false;
+    let flgAngle = false;
+
+    const resetMusic = (nowPlay) => {
+            if (flgMusic) nowPlay.pause();
+            nowPlay.currentTime = 0;
+        }
+        /**
+         * 音楽の関数
+         */
+        const stopMusic =()=> {
+            if (flgMusic) nowPlay.pause();
+            flgMusic = false;
+        }
+        /**
+         * 音楽の関数
+         */
+        const allowMusic = () => {
+            if (!flgMusic) nowPlay.play();
+            flgMusic = true;
+            SE["radio"].load();
+            SE["check"].load();
+            SE["kiwotsuke"].load();
+            SE["START"].load();
+            SE["OK"].load();
+        }
+        /**
+         * 音楽の関数
+         * @param {HTMLAudioElement} music
+         * @param {boolean} status
+         */
+        const startMusic = (music, status = false) => {
+            if (flgMusic) {
+                nowPlay.pause();
+                music.currentTime = 0;
+                music.loop = status;
+                music.play();
+                nowPlay = music;
+            }
+        }
+
 
     document.addEventListener('keydown', event => {
     // 変数eventの中身はKeyboardEventオブジェクト
@@ -775,12 +858,12 @@
 
       
 
-      if(!flag_announce){//運動を始める前のアナウンス
+      /*if(!flag_announce){//運動を始める前のアナウンス
         SE["announce"].load();
         SE["announce"].currentTime = 0;
         SE["announce"].play();
         flag_announce = true;
-      }
+      }*/
 
       /*if(result == 0 && armsTop(results)){
         flag_check = true;
@@ -803,8 +886,7 @@
 
         if(count == 0 && !flag_check && results.poseWorldLandmarks[POSE_LANDMARKS.LEFT_ANKLE].visibility > 0.8 && results.poseWorldLandmarks[POSE_LANDMARKS.RIGHT_ANKLE].visibility > 0.8){
           flag_check = true;
-          SE["check"].currentTime = 0;
-          SE["check"].play();
+          startMusic(SE["check"], false);
         }
       
 
@@ -818,15 +900,13 @@
         if(!flag_left_check && !flag_right_check && results.poseWorldLandmarks[POSE_LANDMARKS.LEFT_WRIST].visibility > 0.8 && results.poseWorldLandmarks[POSE_LANDMARKS.RIGHT_WRIST].visibility > 0.8){
           flag_left_check = true;
           flag_right_check = true;
-          SE["kiwotsuke"].currentTime = 0;
-          SE["kiwotsuke"].play();
+          startMusic(SE["kiwotsuke"], false);
         }
       }
 
       if(!flag_go && flag_left_check && flag_right_check && Standard(results)){
         flag_go = true;
-        SE["START"].currentTime = 0;
-        SE["START"].play();
+        startMusic(SE["START"], false);
         Start();
       }
 
@@ -2307,6 +2387,9 @@
 
     pose.onResults(onResults);
 
+    window.onload = function() {
+        showModal();
+    };
 
     const camera = new Camera(videoElement, {
       onFrame: async () => {
