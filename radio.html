@@ -776,6 +776,7 @@
       
 
       if(!flag_announce){//運動を始める前のアナウンス
+        SE["announce"].load();
         SE["announce"].currentTime = 0;
         SE["announce"].play();
         flag_announce = true;
