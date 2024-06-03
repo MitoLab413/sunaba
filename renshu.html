@@ -1,0 +1,504 @@
+<!DOCTYPE html>
+<html lang = "ja">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <script src="https://cdn.jsdelivr.net/npm/@mediapipe/camera_utils/camera_utils.js" crossorigin="anonymous"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@mediapipe/control_utils/control_utils.js" crossorigin="anonymous"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@mediapipe/control_utils_3d/control_utils_3d.js" crossorigin="anonymous"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@mediapipe/drawing_utils/drawing_utils.js" crossorigin="anonymous"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@mediapipe/pose/pose.js" crossorigin="anonymous"></script>
+  <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.6.4/jquery.min.js"></script>
+
+</head>
+
+<body>
+  <div id="myModal" class="modal">
+    <div class="modal-content">
+        <p>音声を再生するためには許可が必要です。</p>
+        <button id="allowButton">許可する</button>
+    </div>
+  </div>
+  <div class="container">
+    <video hidden class="input_video"></video><!--入力映像-->
+    <canvas class="output_canvas" width="1280px" height="720px"></canvas> <!--描画するキャンパス-->
+    <!--<div class="landmark-grid-container"></div>-->
+    <div id="angle" font size = "5"></div><!--体の角度とかの出力先-->
+  </div>
+</body>
+<style>
+  .container{
+    display: flex;
+    max-width: 1200px;
+    margin: 0 auto;
+  }
+  .input_video{
+    width: 72%;
+    height:510px;
+  }
+  .output_canvas{
+    width: 72%;
+    height:510px;
+  }
+  /* モーダルのスタイル */
+  .modal {
+    display: none;
+    position: fixed;
+    z-index: 1;
+    left: 0;
+    top: 0;
+    width: 100%;
+    height: 100%;
+    background-color: rgba(0, 0, 0, 0.5);
+  }
+  .modal-content {
+    background-color: #fefefe;
+    margin: 15% auto;
+    padding: 20px;
+    border: 1px solid #888;
+    width: 80%;
+    text-align: center;
+    }
+  </style>
+</html>
+
+<script type="module">
+
+'use strict';//ストリクトモードの開始
+// モーダルを表示する関数
+function showModal() {
+        var modal = document.getElementById("myModal");
+        modal.style.display = "block";
+    }
+
+    // ボタンにクリックイベントを追加
+    document.getElementById("allowButton").addEventListener("click", function() {
+        allowMusic();
+        // モーダルを非表示にする
+        document.getElementById("myModal").style.display = "none";
+        localStorage.setItem("audioPermission", "allowed");
+    });
+
+    const videoElement = document.getElementsByClassName('input_video')[0];
+    const canvasElement = document.getElementsByClassName('output_canvas')[0];
+    const canvasCtx = canvasElement.getContext('2d');
+    const landmarkContainer = document.getElementsByClassName('landmark-grid-container')[0];
+    //const grid = new LandmarkGrid(landmarkContainer);
+    const angleElement = document.getElementById("angle");
+
+
+
+    //効果音
+    const ongen = new Audio('SE/ongen.mp3');
+    const announce = new Audio('SE/instruction1.mp3');
+    const guide1 = new Audio('SE/guide1.mp3');
+    const radio = new Audio('SE/radio_using.mp3');
+    const OK = new Audio('SE/OKsound.mp3');
+    const hirogatte = new Audio('SE/hirogatte.mp3');
+    const agarikitte = new Audio('SE/agarikitte.mp3');
+    const yokokara = new Audio('SE/yokokara.mp3');
+
+    //効果音を管理するための変数
+    let nowPlay = announce;
+    let flgMusic = false;
+    let flgAngle = false;
+    let flgStart = false;
+    var step = 0;
+    var count = 0;
+
+    const resetMusic = (nowPlay) => {
+            if (flgMusic) nowPlay.pause();
+            nowPlay.currentTime = 0;
+        }
+        /**
+         * 音楽の関数
+         */
+        const stopMusic =()=> {
+            if (flgMusic) nowPlay.pause();
+            flgMusic = false;
+        }
+        /**
+         * 音楽の関数
+         */
+        const allowMusic = () => {
+            if (!flgMusic) nowPlay.play();
+            flgMusic = true;
+            ongen.load();
+            guide1.load();
+        }
+        /**
+         * 音楽の関数
+         * @param {HTMLAudioElement} music
+         * @param {boolean} status
+         */
+        const startMusic = (music, status = false) => {
+            if (flgMusic) {
+                nowPlay.pause();
+                music.currentTime = 0;
+                music.loop = status;
+                music.play();
+                nowPlay = music;
+            }
+        }
+
+
+
+        //腕を前にあげているかどうかの計算
+    function armsFront(results){
+      const pL = results.poseWorldLandmarks;
+      const right_shoulder = pL[POSE_LANDMARKS.RIGHT_SHOULDER];
+      const right_elbow = pL[POSE_LANDMARKS.RIGHT_ELBOW];
+      const right_wrist = pL[POSE_LANDMARKS.RIGHT_WRIST];
+      const right_hip = pL[POSE_LANDMARKS.RIGHT_HIP];
+      const left_shoulder = pL[POSE_LANDMARKS.LEFT_SHOULDER];
+      const left_elbow = pL[POSE_LANDMARKS.LEFT_ELBOW];
+      const left_wrist = pL[POSE_LANDMARKS.LEFT_WRIST];
+      const left_hip = pL[POSE_LANDMARKS.LEFT_HIP];
+
+      var is_stretch =  (calcAngle(right_shoulder,right_elbow,right_wrist).angle>=160)&&(calcAngle(left_shoulder,left_elbow,left_wrist).angle>=160);//腕を伸ばしているかどうか
+      var is_extended = (calcAngle(right_hip,right_shoulder,right_elbow).angle>=80)&&(calcAngle(right_hip,right_shoulder,right_elbow).angle<=100)&&(calcAngle(left_hip,left_shoulder,left_elbow).angle>=80)&&(calcAngle(left_hip,left_shoulder,left_elbow).angle<=100);//腕を広げているかどうか
+      var is_front = (calcAngle(right_shoulder,left_shoulder,left_elbow).angle>= 80)&&(calcAngle(right_shoulder,left_shoulder,left_elbow).angle<= 100)&&(calcAngle(left_shoulder,right_shoulder,right_elbow).angle>=80)&&(calcAngle(left_shoulder,right_shoulder,right_elbow).angle<= 100);//前に手をあげてるかどうか
+      return is_stretch && is_extended && is_front;//腕が伸びていて、かつ前にあがっていたらよいとする
+    }
+
+
+    //腕が横にあがっているかどうかの計算
+    function armsSide(results){
+      const pL = results.poseWorldLandmarks;
+      const right_shoulder = pL[POSE_LANDMARKS.RIGHT_SHOULDER];
+      const right_elbow = pL[POSE_LANDMARKS.RIGHT_ELBOW];
+      const right_wrist = pL[POSE_LANDMARKS.RIGHT_WRIST];
+      const right_hip = pL[POSE_LANDMARKS.RIGHT_HIP];
+      const left_shoulder = pL[POSE_LANDMARKS.LEFT_SHOULDER];
+      const left_elbow = pL[POSE_LANDMARKS.LEFT_ELBOW];
+      const left_wrist = pL[POSE_LANDMARKS.LEFT_WRIST];
+      const left_hip = pL[POSE_LANDMARKS.LEFT_HIP];
+
+      var is_stretch =  (calcAngle(right_shoulder,right_elbow,right_wrist).angle>=150)&&(calcAngle(left_shoulder,left_elbow,left_wrist).angle>=150);//腕を伸ばしているかどうか
+      var is_extended = (calcAngle(right_hip,right_shoulder,right_elbow).angle>=90)&&(calcAngle(right_hip,right_shoulder,right_elbow).angle<=130)&&(calcAngle(left_hip,left_shoulder,left_elbow).angle>=90)&&(calcAngle(left_hip,left_shoulder,left_elbow).angle<=130);//腕を広げているかどうか
+      var is_side = (calcAngle(right_shoulder,left_shoulder,left_elbow).angle>=160)&&(calcAngle(right_shoulder,left_shoulder,left_elbow).angle<= 190)&&(calcAngle(left_shoulder,right_shoulder,right_elbow).angle>= 160)&&(calcAngle(left_shoulder,right_shoulder,right_elbow).angle<= 190);//前に手をあげてるかどうか
+
+      return is_stretch && is_extended && is_side;//腕が伸びていて、かつ、腕が広がっていたらよいとする
+    }
+
+    //腕が真上にあるかどうかの計算
+    function armsTop(results){
+      const pL = results.poseWorldLandmarks;
+      const right_shoulder = pL[POSE_LANDMARKS.RIGHT_SHOULDER];
+      const right_elbow = pL[POSE_LANDMARKS.RIGHT_ELBOW];
+      const right_wrist = pL[POSE_LANDMARKS.RIGHT_WRIST];
+      const right_hip = pL[POSE_LANDMARKS.RIGHT_HIP];
+      const left_shoulder = pL[POSE_LANDMARKS.LEFT_SHOULDER];
+      const left_elbow = pL[POSE_LANDMARKS.LEFT_ELBOW];
+      const left_wrist = pL[POSE_LANDMARKS.LEFT_WRIST];
+      const left_hip = pL[POSE_LANDMARKS.LEFT_HIP];
+
+      var is_stretch =  (calcAngle(right_shoulder,right_elbow,right_wrist).angle>=150)&&(calcAngle(left_shoulder,left_elbow,left_wrist).angle>=150);//腕を伸ばしているかどうか
+      var is_top = (calcAngle(right_hip,right_shoulder,right_elbow).angle>=165)&&(calcAngle(right_hip,right_shoulder,right_elbow).angle<=180)&&(calcAngle(left_hip,left_shoulder,left_elbow).angle>=165)&&(calcAngle(left_hip,left_shoulder,left_elbow).angle<=180);//腕が真上にあるかどうか
+      var is_front = (calcAngle(right_shoulder,left_shoulder,left_elbow).angle>= 75)&&(calcAngle(right_shoulder,left_shoulder,left_elbow).angle<= 105)&&(calcAngle(left_shoulder,right_shoulder,right_elbow).angle>= 75)&&(calcAngle(left_shoulder,right_shoulder,right_elbow).angle<= 105);//前に手をあげてるかどうか
+      return is_stretch && is_top && is_front;//腕が伸びていて、かつ、腕が広がっていたらよいとする
+    }
+
+    function armsTopSpread(results){
+      const pL = results.poseWorldLandmarks;
+      const right_shoulder = pL[POSE_LANDMARKS.RIGHT_SHOULDER];
+      const right_elbow = pL[POSE_LANDMARKS.RIGHT_ELBOW];
+      const right_wrist = pL[POSE_LANDMARKS.RIGHT_WRIST];
+      const right_hip = pL[POSE_LANDMARKS.RIGHT_HIP];
+      const left_shoulder = pL[POSE_LANDMARKS.LEFT_SHOULDER];
+      const left_elbow = pL[POSE_LANDMARKS.LEFT_ELBOW];
+      const left_wrist = pL[POSE_LANDMARKS.LEFT_WRIST];
+      const left_hip = pL[POSE_LANDMARKS.LEFT_HIP];
+
+      var is_stretch =  (calcAngle(right_shoulder,right_elbow,right_wrist).angle>=150)&&(calcAngle(left_shoulder,left_elbow,left_wrist).angle>=150);//腕を伸ばしているかどうか
+      var is_top = (calcAngle(right_hip,right_shoulder,right_elbow).angle<165)&&(calcAngle(right_hip,right_shoulder,right_elbow).angle>140)&&(calcAngle(left_hip,left_shoulder,left_elbow).angle<165)&&(calcAngle(left_hip,left_shoulder,left_elbow).angle>140);//腕が真上にあるかどうか
+      var is_front = (calcAngle(right_shoulder,left_shoulder,left_elbow).angle>= 100)&&(calcAngle(right_shoulder,left_shoulder,left_elbow).angle<= 140)&&(calcAngle(left_shoulder,right_shoulder,right_elbow).angle>= 100)&&(calcAngle(left_shoulder,right_shoulder,right_elbow).angle<= 140);//前に手をあげてるかどうか
+      return is_stretch && is_top && is_front;//腕が伸びていて、かつ、腕が広がっていたらよいとする
+    }
+
+    function armsTopForward(results){
+      const pL = results.poseWorldLandmarks;
+      const right_shoulder = pL[POSE_LANDMARKS.RIGHT_SHOULDER];
+      const right_elbow = pL[POSE_LANDMARKS.RIGHT_ELBOW];
+      const right_wrist = pL[POSE_LANDMARKS.RIGHT_WRIST];
+      const right_hip = pL[POSE_LANDMARKS.RIGHT_HIP];
+      const left_shoulder = pL[POSE_LANDMARKS.LEFT_SHOULDER];
+      const left_elbow = pL[POSE_LANDMARKS.LEFT_ELBOW];
+      const left_wrist = pL[POSE_LANDMARKS.LEFT_WRIST];
+      const left_hip = pL[POSE_LANDMARKS.LEFT_HIP];
+
+      var is_stretch =  (calcAngle(right_shoulder,right_elbow,right_wrist).angle>=150)&&(calcAngle(left_shoulder,left_elbow,left_wrist).angle>=150);//腕を伸ばしているかどうか
+      var is_top = (calcAngle(right_hip,right_shoulder,right_elbow).angle<160)&&(calcAngle(right_hip,right_shoulder,right_elbow).angle>130)&&(calcAngle(left_hip,left_shoulder,left_elbow).angle<160)&&(calcAngle(left_hip,left_shoulder,left_elbow).angle>130);//腕が真上にあるかどうか
+      var is_front = (calcAngle(right_shoulder,left_shoulder,left_elbow).angle>= 70)&&(calcAngle(right_shoulder,left_shoulder,left_elbow).angle<= 110)&&(calcAngle(left_shoulder,right_shoulder,right_elbow).angle>= 70)&&(calcAngle(left_shoulder,right_shoulder,right_elbow).angle<= 110);//前に手をあげてるかどうか
+      return is_stretch && is_top && is_front;//腕が伸びていて、かつ、腕が広がっていたらよいとする
+    }
+
+    function Standard(results){
+      const pL = results.poseWorldLandmarks;
+      const right_shoulder = pL[POSE_LANDMARKS.RIGHT_SHOULDER];
+      const right_elbow = pL[POSE_LANDMARKS.RIGHT_ELBOW];
+      const right_wrist = pL[POSE_LANDMARKS.RIGHT_WRIST];
+      const right_hip = pL[POSE_LANDMARKS.RIGHT_HIP];
+      const left_shoulder = pL[POSE_LANDMARKS.LEFT_SHOULDER];
+      const left_elbow = pL[POSE_LANDMARKS.LEFT_ELBOW];
+      const left_wrist = pL[POSE_LANDMARKS.LEFT_WRIST];
+      const left_hip = pL[POSE_LANDMARKS.LEFT_HIP];
+      const right_knee = pL[POSE_LANDMARKS.RIGHT_KNEE];
+      const right_ankle = pL[POSE_LANDMARKS.RIGHT_ANKLE];
+      const left_knee = pL[POSE_LANDMARKS.LEFT_KNEE];
+      const left_ankle = pL[POSE_LANDMARKS.LEFT_ANKLE];
+
+      var is_stretch =  (calcAngle(right_shoulder,right_elbow,right_wrist).angle>=140)&&(calcAngle(left_shoulder,left_elbow,left_wrist).angle>=140);//腕を伸ばしているかどうか
+      var is_down = (calcAngle(left_hip, left_shoulder, left_elbow).angle <= 40)&&(calcAngle(right_hip, right_shoulder, right_elbow).angle <= 40);
+      var legs_stretch = (calcAngle(right_hip, right_knee, right_ankle).angle >= 150)&&(calcAngle(left_hip, left_knee, left_ankle).angle >= 150);
+      var legs_close  = (right_ankle.x >= right_shoulder.x) && (left_ankle.x <= left_shoulder.x);
+      return is_stretch && is_down && legs_stretch && legs_close;
+    }
+
+    function RshoulderAngle(results){
+      const pL = results.poseWorldLandmarks;
+      const right_shoulder = pL[POSE_LANDMARKS.RIGHT_SHOULDER];
+      const right_elbow = pL[POSE_LANDMARKS.RIGHT_ELBOW];
+      const right_hip = pL[POSE_LANDMARKS.RIGHT_HIP];
+      
+      var angle = calcAngle(right_hip,right_shoulder,right_elbow).angle;
+
+      return angle;
+    }
+
+    function LshoulderAngle(results){
+      const pL = results.poseWorldLandmarks;
+      const left_shoulder = pL[POSE_LANDMARKS.LEFT_SHOULDER];
+      const left_elbow = pL[POSE_LANDMARKS.LEFT_ELBOW];
+      const left_hip = pL[POSE_LANDMARKS.LEFT_HIP];
+      
+      var angle = calcAngle(left_hip,left_shoulder,left_elbow).angle;
+
+      return angle;
+    }
+
+    function LsReAngle(results){
+      const pL = results.poseWorldLandmarks;
+      const right_shoulder = pL[POSE_LANDMARKS.RIGHT_SHOULDER];
+      const right_elbow = pL[POSE_LANDMARKS.RIGHT_ELBOW];
+      const left_shoulder = pL[POSE_LANDMARKS.LEFT_SHOULDER];
+
+      var angle = calcAngle(left_shoulder, right_shoulder, right_elbow).angle;
+
+      return angle;
+    }
+
+    function RsLeAngle(results){
+      const pL = results.poseWorldLandmarks;
+      const right_shoulder = pL[POSE_LANDMARKS.RIGHT_SHOULDER];
+      const left_elbow = pL[POSE_LANDMARKS.LEFT_ELBOW];
+      const left_shoulder = pL[POSE_LANDMARKS.LEFT_SHOULDER];
+
+      var angle = calcAngle(right_shoulder, left_shoulder, left_elbow).angle;
+
+      return angle;
+    }
+
+
+    //pose1とpose2からベクトルを作る関数
+    function makeVector(pose1,pose2){//始点,終点
+      const vector1 = {
+          x:Math.round((pose2.x-pose1.x)*1000000)/1000000,
+          y:Math.round((pose2.y-pose1.y)*1000000)/1000000,
+          z:Math.round((pose2.z-pose1.z)*1000000)/1000000,
+          visibility:Math.min(pose1.visibility,pose2.visibility),
+      }
+      return vector1;
+    }
+
+    //肩の角度から体の傾きを計算する関数
+    function bodyAngle(results){
+      var pL = results.poseWorldLandmarks;
+      var rh = POSE_LANDMARKS.RIGHT_ANKLE;
+      var lh = POSE_LANDMARKS.LEFT_ANKLE;
+      var vec = [pL[rh].x-pL[lh].x,pL[rh].y-pL[lh].y,pL[rh].z-pL[lh].z];
+      var vec_long = vec[0]**2+vec[1]**2+vec[2]**2;
+      var costh = -1*vec[2]/Math.sqrt(vec_long);
+      var sign;
+      if(pL[rh].z<=pL[lh].z){
+        sign = 1;
+      }else{
+        sign = -1;
+      }
+      return sign*Math.round(Math.acos(costh)*180/Math.PI*1000)/1000;
+    }
+//カメラに対する体の向き
+    function cameraAngle(results) {
+    var pL = results.poseWorldLandmarks;
+    var rh = POSE_LANDMARKS.RIGHT_KNEE;
+    var lh = POSE_LANDMARKS.LEFT_KNEE;
+    var vec = [pL[rh].x - pL[lh].x, pL[rh].y - pL[lh].y, pL[rh].z - pL[lh].z];
+    var vec_long = Math.sqrt(vec[0] ** 2 + vec[1] ** 2 + vec[2] ** 2);
+    var costh = vec[2] / vec_long; // Cosine of the angle between the vector and the vertical plane
+    var angleRad = Math.acos(costh); // Angle in radians between the vector and the vertical plane
+    var angleDeg = angleRad * (180 / Math.PI); // Convert radians to degrees
+    return Math.round(angleDeg * 1000) / 1000; // Round to 3 decimal places and return
+}
+
+    //キーポイントを引数とした角度の計算
+    function calcAngle(pose1,pose2,pose3){
+        // please learn here -> https://npm.runkit.com/%40mediapipe%2Fpose
+
+        const vector1 = {
+            x:Math.round((pose1.x-pose2.x)*1000000)/1000000,
+            y:Math.round((pose1.y-pose2.y)*1000000)/1000000,
+            z:Math.round((pose1.z-pose2.z)*1000000)/1000000,
+            visibility:Math.min(pose1.visibility,pose2.visibility),
+        }
+        const vector2 = {
+            x:Math.round((pose3.x-pose2.x)*1000000)/1000000,
+            y:Math.round((pose3.y-pose2.y)*1000000)/1000000,
+            z:Math.round((pose3.z-pose2.z)*1000000)/1000000,
+            visibility:Math.min(pose3.visibility,pose2.visibility),
+        }
+
+        //console.log("arrived vector",vector1,vector2)
+        return {
+            angle: Math.acos((vector1.x * vector2.x + vector1.y * vector2.y + vector1.z * vector2.z) / ( Math.sqrt(vector1.x**2 + vector1.y**2 + vector1.z**2) * Math.sqrt(vector2.x**2 + vector2.y**2 + vector2.z**2))) * 180 / Math.PI,
+            visibility: Math.min(vector1.visibility, vector2.visibility),
+            "vector1":vector1,
+            "vector2":vector2,
+        };
+    }
+
+    //ベクトルを引数とした角度の計算
+    function calcVectorAngle(vector1,vector2){
+      return {
+          angle: Math.acos((vector1.x * vector2.x + vector1.y * vector2.y + vector1.z * vector2.z) / ( Math.sqrt(vector1.x**2 + vector1.y**2 + vector1.z**2) * Math.sqrt(vector2.x**2 + vector2.y**2 + vector2.z**2))) * 180 / Math.PI,
+          visibility: Math.min(vector1.visibility, vector2.visibility),
+          "vector1":vector1,
+          "vector2":vector2,
+      };
+    }
+
+
+    var intervalID;
+
+    function Timer(){
+      count += 1;
+      //console.log(count);
+    }
+
+
+    function Start(){
+      if(intervalID == null){
+      intervalID = setInterval(Timer, 1000);
+    }}
+
+
+    function Reset(){
+      clearInterval(intervalID);
+      intervalID = null;
+      count = 0;
+    }
+
+
+    //毎フレーム描画する関数
+    function onResults(results) {
+      if (!results.poseLandmarks) {
+        //grid.updateLandmarks([]);
+        return;
+      }
+
+      canvasCtx.save();
+      canvasCtx.clearRect(0, 0, canvasElement.width, canvasElement.height);
+      /*canvasCtx.drawImage(results.segmentationMask, 0, 0,
+                          canvasElement.width, canvasElement.height);*/
+
+      // Only overwrite existing pixels.
+      canvasCtx.globalCompositeOperation = 'source-in';
+      canvasCtx.fillStyle = '#00FF00';
+      canvasCtx.fillRect(0, 0, canvasElement.width, canvasElement.height);
+
+      // Only overwrite missing pixels.
+      canvasCtx.globalCompositeOperation = 'destination-atop';
+      canvasCtx.drawImage(
+          results.image, 0, 0, canvasElement.width, canvasElement.height);
+
+      canvasCtx.globalCompositeOperation = 'source-over';
+      drawConnectors(canvasCtx, results.poseLandmarks, POSE_CONNECTIONS,
+                     {color: '#00FF00', lineWidth: 4});
+      drawLandmarks(canvasCtx, results.poseLandmarks,
+                    {color: '#FF0000', lineWidth: 2});
+      canvasCtx.restore();
+
+      //ここらへんで自分の関数の処理や音声の再生をしている、描画もやろうと思えばできるよ
+      var resulttxt="<br>右腰肩肘角度:"+RshoulderAngle(results)+"°</br><br>左腰肩肘角度:"+LshoulderAngle(results)+"°</br><br>左肩右肩肘角度："+LsReAngle(results)+"</br><br>右肩左肩肘角度："+RsLeAngle(results)+"</br><h1>step:"+step+"</h1>";
+      angleElement.innerHTML = resulttxt;
+
+
+      var Cangle = cameraAngle(results);
+
+    
+      
+
+      if(results.poseWorldLandmarks[POSE_LANDMARKS.LEFT_ANKLE].visibility > 0.8 && results.poseWorldLandmarks[POSE_LANDMARKS.RIGHT_ANKLE].visibility > 0.8){
+        if(step == 0){
+          startMusic(guide1, false);
+          step = 1;
+        }
+      }
+
+      var top = armsTop(results);
+      var topS = armsTopSpread(results);
+      var topF = armsTopForward(results);
+
+      if(step == 1){
+        if(top){
+          startMusic(OK, false);
+          step = 2;
+        }
+        if(topS){
+          startMusic(hirogatte, false);
+        }
+        if(topF){
+          startMusic(agarikitte, false);
+        }
+      }
+      
+      if(step == 2){
+        Start();
+        if(count == 2){
+          startMusic(yokokara, false);
+          step = 3;
+          count = 0;
+        }
+      }
+
+
+      //grid.updateLandmarks(results.poseWorldLandmarks);
+    }
+
+    window.onload = function() {
+        showModal();
+    };
+
+    const pose = new Pose({locateFile: (file) => {
+      return `https://cdn.jsdelivr.net/npm/@mediapipe/pose/${file}`;
+    }});
+    pose.setOptions({
+      modelComplexity: 0,
+      smoothLandmarks: true,
+      enableSegmentation: true,
+      smoothSegmentation: true,
+      minDetectionConfidence: 0.5,
+      minTrackingConfidence: 0.5
+    });
+
+    pose.onResults(onResults);
+
+
+    const camera = new Camera(videoElement, {
+      onFrame: async () => {
+        await pose.send({image: videoElement});
+      },
+      width: 1280,
+      height: 720
+    });
+    camera.start();
+</script>
