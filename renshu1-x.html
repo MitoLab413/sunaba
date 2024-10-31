@@ -111,6 +111,7 @@ function showModal() {
     let flgStart = false;
     let flgFront = false;
     let flgSide = false;
+    let flgMiss = false;
     var step = 0;
     var count = 0;
 
@@ -406,6 +407,58 @@ function showModal() {
     }
 
 
+const audioContext = new (window.AudioContext || window.webkitAudioContext)()
+const audioContext2 = new (window.AudioContext || window.webkitAudioContext)()
+const audioContext3 = new (window.AudioContext || window.webkitAudioContext)()
+
+
+
+// 周波数に対応する音階（ドレミファソラシド C4からC5まで）
+//const frequencies = [261.63, 293.66, 329.63, 349.23, 392.00, 440.00, 493.88, 523.25]
+
+// 指定した周波数で音を鳴らす関数
+function playTone(freq) {
+  const oscillator = audioContext.createOscillator()
+  oscillator.frequency.setValueAtTime(freq, audioContext.currentTime)
+  oscillator.type = 'sine'
+
+  const gainNode = audioContext.createGain()
+  gainNode.gain.setValueAtTime(1.2, audioContext.currentTime)
+  //gainNode.gain.exponentialRampToValueAtTime(0.001, audioContext.currentTime + 1.5)
+  oscillator.connect(gainNode)
+  gainNode.connect(audioContext.destination)
+  oscillator.start()
+  //oscillator.stop(audioContext.currentTime + 1.5)
+}
+
+function playTone2(freq) {
+  const oscillator = audioContext2.createOscillator()
+  oscillator.frequency.setValueAtTime(freq, audioContext2.currentTime)
+  oscillator.type = 'sine'
+
+  const gainNode = audioContext2.createGain()
+  gainNode.gain.setValueAtTime(1.2, audioContext2.currentTime)
+  //gainNode.gain.exponentialRampToValueAtTime(0.001, audioContext2.currentTime + 1.5)
+  oscillator.connect(gainNode)
+  gainNode.connect(audioContext2.destination)
+  oscillator.start()
+  //oscillator.stop(audioContext2.currentTime + 1.5)
+}
+
+function playTone3(freq) {
+  const oscillator = audioContext3.createOscillator()
+  oscillator.frequency.setValueAtTime(freq, audioContext3.currentTime)
+  oscillator.type = 'sine'
+
+  const gainNode = audioContext3.createGain()
+  gainNode.gain.setValueAtTime(1.2, audioContext3.currentTime)
+  //gainNode.gain.exponentialRampToValueAtTime(0.001, audioContext2.currentTime + 1.5)
+  oscillator.connect(gainNode)
+  gainNode.connect(audioContext3.destination)
+  oscillator.start()
+  //oscillator.stop(audioContext2.currentTime + 1.5)
+}
+
     //毎フレーム描画する関数
     function onResults(results) {
       if (!results.poseLandmarks) {
@@ -461,7 +514,7 @@ function showModal() {
         Start();
         if(count >= 6){
           if(standard){
-            startMusic(step1, false);
+            //startMusic(step1, false);
             step = 2;
             Reset();
           }
@@ -469,37 +522,61 @@ function showModal() {
       }
 
       if(step == 2){
+        playTone(261.626);
+        step = 3
+      }
+
+      /*if(step == 3){
+        if(!top){
+          flgMiss = false;
+        }
         if(front){
           flgFront = true;
         }
         if(top){
           if(flgFront){
             OK.play();
-            step = 3;
+            step = 4;
           }
           if(!flgFront){
-            startMusic(REstep2, false)
+            if(!flgMiss){
+              playTone2(329.628);
+              flgMiss = true;
+            }
           }
         }
-      }
+      }*/
+
 
       if(step == 3){
+        if(front){
+          playTone2(329.628);
+          step = 4;
+        }
+      }
+      if(step == 4){
+        if(top){
+          playTone3(391.995);
+          step = 5;
+        }
+      }
+      /*if(step == 4){
         Start();
         if(count > 1){
           startMusic(step3, false);
-          step = 4;
+          step = 5;
           Reset();
         }
       }
 
-      if(step == 4){
+      if(step == 5){
         if(side){
           flgSide = true;
         }
         if(standard){
           if(flgSide){
             startMusic(great, false);
-            step = 5;
+            step = 6;
           }
           if(!flgSide){
             startMusic(REstep4, false);
@@ -507,11 +584,11 @@ function showModal() {
         }
       }
 
-      if(step == 5){
+      if(step == 6){
         if(top){
           OK.play();
         }
-      }
+      }*/
 
 
       //grid.updateLandmarks(results.poseWorldLandmarks);
