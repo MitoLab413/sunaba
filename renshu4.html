@@ -116,6 +116,7 @@ function showModal() {
     let flgX = false;
     var step = 0;
     var count = 0;
+    var counter = 0;
 
     const resetMusic = (nowPlay) => {
             if (flgMusic) nowPlay.pause();
@@ -355,7 +356,7 @@ function showModal() {
       canvasCtx.restore();
 
       //ここらへんで自分の関数の処理や音声の再生をしている、描画もやろうと思えばできるよ
-      var resulttxt="<h1>step:"+step+"</h1><h1>flgSide:"+flgSide+"</h1><h1>flgCross:"+flgCross+"</h1><h1>flgTop:"+flgCross2+"</h1>";
+      var resulttxt="<h1>回数:"+counter+"</h1><h1>flgSide:"+flgSide+"</h1><h1>flgCross:"+flgCross+"</h1><h1>flgTop:"+flgCross2+"</h1>";
       angleElement.innerHTML = resulttxt;
 
 
@@ -366,7 +367,6 @@ function showModal() {
 
       if(results.poseWorldLandmarks[POSE_LANDMARKS.LEFT_ANKLE].visibility > 0.8 && results.poseWorldLandmarks[POSE_LANDMARKS.RIGHT_ANKLE].visibility > 0.8){
         if(step == 0){
-          startMusic(guide1, false);
           step = 1;
         }
       }
@@ -398,13 +398,18 @@ function showModal() {
             }
         }
         if(flgX){
-            Start();
+          if(side){
+            flgCross = false;
+            flgCross2 = false;
+            flgSide = false;
+          }
+            /*Start();
             if(count >= 2){
               flgCross = false;
               flgCross2 = false;
               flgSide = false;
               Reset();
-            }
+            }*/
         }
       }
 
