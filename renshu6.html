@@ -180,9 +180,11 @@ function showModal() {
       const left_hip = pL[POSE_LANDMARKS.LEFT_HIP];
       const left_knee = pL[POSE_LANDMARKS.LEFT_KNEE];
       const left_ankle = pL[POSE_LANDMARKS.LEFT_ANKLE];
+      var y_r = (right_knee.y + right_ankle.y)/2;
+      var y_l = (left_knee.y + left_ankle.y)/2;
 
       var is_bent = (calcAngle(right_knee,right_hip,right_shoulder).angle<=110) && (calcAngle(left_knee,left_hip,left_shoulder).angle<=110);
-      var is_bound = (right_wrist.y < right_knee.y) && (left_wrist.y < left_knee.y);
+      var is_bound = (right_wrist.y < y_r) && (left_wrist.y < y_l);
 
       return is_bent && is_bound;
 
@@ -506,12 +508,12 @@ function allStop(freq){
       }
       if(step == 6){
         if(back){
+          OK.play();
           step = 7;
         }
       }
       if(step == 7){
         if(standard){
-            OK.play();
           step = 1;
         }
       }
