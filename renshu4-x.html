@@ -103,6 +103,8 @@ function showModal() {
     const kakunin_guide = new Audio('SE/step4-2-1.mp3');
     const renshu_guide1 = new Audio('SE/step4-3-1.mp3');
     const renshu_guide = new Audio('SE/guide10-3.mp3');
+    const radio = new Audio('SE/radio_4.mp3');
+    const mode3_guide = new Audio('SE/mode3_guide.mp3');
     
 
     //効果音を管理するための変数
@@ -115,6 +117,7 @@ function showModal() {
     let flgSide = false;
     let flgX = false;
     let flgSkip = false;
+    let flg = false;
     var step = 0;
     var count = 0;
     var mode = 0;
@@ -153,6 +156,13 @@ function showModal() {
                 nowPlay = music;
             }
         }
+
+    document.addEventListener('keydown', event => {
+    // 変数eventの中身はKeyboardEventオブジェクト
+      if(!flg && event.key === 'j'){
+        flg = true;
+      }
+    });
 
     //脚が左右に開いているかどうか
     function legsOpen(results){
@@ -507,7 +517,7 @@ function allStop(freq){
       canvasCtx.restore();
 
       //ここらへんで自分の関数の処理や音声の再生をしている、描画もやろうと思えばできるよ
-      var resulttxt="<h1>step:"+step+"</h1><h1>flgSide:"+flgSide+"</h1><h1>flgCross:"+flgCross+"</h1><h1>flgTop:"+flgCross2+"</h1>";
+      var resulttxt="<h1>step:"+step+"</h1><h1>mode:"+mode+"</h1><h1>count:"+count+"</h1><h1>flgTop:"+flgCross2+"</h1>";
       angleElement.innerHTML = resulttxt;
 
 
@@ -521,7 +531,7 @@ function allStop(freq){
       var side = armsSide(results);
       var skip = Skip(results);
 
-      if(!flgSkip){
+      /*if(!flgSkip){
         if(skip){
           flgSkip = true;
           mode += 1;
@@ -530,7 +540,20 @@ function allStop(freq){
       }
       if(standard){
         flgSkip = false;
+      }*/
+
+      //ボタンを雄とスキップ
+      if(flg && mode < 3){
+        mode += 1;
+        step = 0;
+        flg = false;
       }
+      if(flg && mode == 3){
+        mode = 0;
+        step = 0;
+        flg = false;
+      }
+
 
       if(mode == 0){
         if(results.poseWorldLandmarks[POSE_LANDMARKS.LEFT_ANKLE].visibility > 0.8 && results.poseWorldLandmarks[POSE_LANDMARKS.RIGHT_ANKLE].visibility > 0.8){
@@ -634,18 +657,24 @@ function allStop(freq){
         if(step == 3){
           if(X){
             startMusic(OK, false);
+            step = 4;
             Start();
-          }
-          if(count == 2){
-            startMusic(kakunin_guide, false);
-            Reset();
-            step = 4
           }
         }
         if(step == 4){
+          if(count == 2){
+            startMusic(kakunin_guide, false);
+            Reset();
+            step = 5;
+          }
+        }
+        if(step == 5){
           Start();
+          step = 6;
+        }
+        if(step == 6){
           if(count == 5){
-            mode = 2;
+            mode += 1;
             step = 0;
             Reset();
           }
@@ -657,30 +686,23 @@ function allStop(freq){
         if(step == 0){
           startMusic(renshu_guide1, false)
           Start();
-        }
-        if(count == 8){
-          step = 1
-          Reset()
+          step = 1;
         }
         if(step == 1){
-          if(cross){
-            playTone(261.626);
+          if(count == 12){
             step = 2;
+            Reset();
           }
         }
         if(step == 2){
-          if(side){
-            playTone2(329.628);
+          if(cross){
+            playTone(261.626);
             step = 3;
-          }
-          if(X){
-            allStop();
-            step = 1;
           }
         }
         if(step == 3){
-          if(cross){
-            playTone3(391.995);
+          if(side){
+            playTone2(329.628);
             step = 4;
           }
           if(X){
@@ -689,24 +711,70 @@ function allStop(freq){
           }
         }
         if(step == 4){
-          if(X){
-            playTone4(523.251);
+          if(cross){
+            playTone3(391.995);
             step = 5;
           }
-        }
-        if(step == 5){
-          if(side){
+          if(X){
             allStop();
-            startMusic(renshu_guide, false);
             step = 1;
           }
         }
+        if(step == 5){
+          if(X){
+            playTone4(523.251);
+            step = 6;
+          }
+        }
+        if(step == 6){
+          if(side){
+            allStop();
+            startMusic(renshu_guide, false);
+            step = 2;
+          }
+        }
+      }
  
 
+      if(mode == 3){
+        if(step == 0){
+          startMusic(mode3_guide, false);
+          Start();
+          step = 1;
+        }
+        if(step == 1){
+          if(count == 5){
+            step = 2;
+            Reset();
+          }
+        }
+        if(step == 2){
+          startMusic(radio, false);
+          Start();
+          step = 3;
+        }
+        if(step == 3){
+          if(count == 17){
+            startMusic(renshu_guide, false);
+            Reset();
+            step = 4;
+          }
+        }
+        if(step == 4){
+          Start();
+          step = 5;
+        }
+        if(step == 5){
+          if(count == 4){
+            step = 2;
+            Reset();
+          }
+        }
+      }
 
       //grid.updateLandmarks(results.poseWorldLandmarks);
       }
-    }
+    
 
     window.onload = function() {
         showModal();
