@@ -91,10 +91,15 @@ function showModal() {
     //効果音
     const ongen = new Audio('SE/ongen.mp3');
     const announce = new Audio('SE/intro_10.mp3');
-    const guide1 = new Audio('SE/guide10-1.mp3');
-    const guide2 = new Audio('SE/guide10-2.mp3');
-    const guide3 = new Audio('SE/guide10-3.mp3');
-    
+    const guide = new Audio('SE/start_voice.mp3');
+    const guide1 = new Audio('SE/guide4-1-1.mp3');
+    const guide2 = new Audio('SE/guide10-1-2.mp3');
+    const guide3 = new Audio('SE/guide10-1-3.mp3');
+    const guide4 = new Audio('SE/guide10-1-4.mp3');
+    const guide5 = new Audio('SE/guide10-1-5.mp3');
+    const guide6 = new Audio('SE/guide10-1-6.mp3');
+    const guide7 = new Audio('SE/guide10-1-7.mp3');
+    const guide8 = new Audio('SE/guide10-1-8.mp3');
 
     //効果音を管理するための変数
     let nowPlay = announce;
@@ -104,6 +109,7 @@ function showModal() {
     let flgFront = false;
     let flgSide = false;
     let flgMiss = false;
+    var mode = 0;
     var step = 0;
     var count = 0;
 
@@ -245,6 +251,22 @@ function showModal() {
       var legs_stretch = (calcAngle(right_hip, right_knee, right_ankle).angle >= 150)&&(calcAngle(left_hip, left_knee, left_ankle).angle >= 150);
       var legs_close  = (right_ankle.x >= right_shoulder.x) && (left_ankle.x <= left_shoulder.x);
       return is_stretch && is_down && legs_stretch && legs_close;
+    }
+
+    //脚が左右に開いているかどうか
+    function legsOpen(results){
+      const pL = results.poseWorldLandmarks;
+      const right_shoulder = pL[POSE_LANDMARKS.RIGHT_SHOULDER];
+      const right_hip = pL[POSE_LANDMARKS.RIGHT_HIP];
+      const right_knee = pL[POSE_LANDMARKS.RIGHT_KNEE];
+      const left_shoulder = pL[POSE_LANDMARKS.LEFT_SHOULDER];
+      const left_hip = pL[POSE_LANDMARKS.LEFT_HIP];
+      const left_knee = pL[POSE_LANDMARKS.LEFT_KNEE];
+
+      var is_open_legs = (left_knee.x > left_hip.x)&&(right_knee.x < right_hip.x);
+      var angle = bodyAngle(results);
+      return is_open_legs && angle < 110 && angle > 70;
+
     }
 
 
@@ -482,20 +504,109 @@ function allStop(freq){
 
       var Cangle = cameraAngle(results);
 
-      
-
-      if(results.poseWorldLandmarks[POSE_LANDMARKS.LEFT_ANKLE].visibility > 0.8 && results.poseWorldLandmarks[POSE_LANDMARKS.RIGHT_ANKLE].visibility > 0.8){
-        if(step == 0){
-          startMusic(guide1, false);
-          step = 1;
-        }
-      }
-
       var front = body_front(results);
       var back = body_back(results);
       var right = armsRight(results);
       var left = armsLeft(results);
+      var open = legsOpen(results);
 
+    if(mode == 0){
+      if(results.poseWorldLandmarks[POSE_LANDMARKS.LEFT_ANKLE].visibility > 0.8 && results.poseWorldLandmarks[POSE_LANDMARKS.RIGHT_ANKLE].visibility > 0.8){
+        if(step == 0){
+          startMusic(guide, false);
+          step = 1;
+        }
+      }
+      if(step == 1){
+          startMusic(guide1, false);
+          step = 2;
+        }
+        if(step == 2){
+          if(open){
+            OK.play();
+            Start();
+          }
+          if(count == 1){
+            startMusic(guide2, false);
+            step = 3;
+            Reset();
+          }
+        }
+        if(step == 3){
+          if(right){
+            OK.play();
+            Start();
+          }
+          if(count == 1){
+            startMusic(guide3, false);
+            step = 4;
+            Reset();
+          }
+        }
+        if(step == 4){
+          if(front){
+            OK.play();
+            Start();
+          }
+          if(count == 1){
+            startMusic(guide4, false);
+            step = 5;
+            Reset();
+          }
+        }
+        if(step == 5){
+          if(left){
+            OK.play();
+            Start();
+          }
+          if(count == 1){
+            startMusic(guide5, false);
+            step = 6;
+            Reset();
+          }
+        }
+        if(step == 6){
+          if(back){
+            OK.play();
+            Start();
+          }
+          if(count == 1){
+            startMusic(guide6, false);
+            step = 7;
+            Reset();
+          }
+        }
+        if(step == 7){
+          if(right){
+            OK.play();
+            Start();
+          }
+          if(count == 1){
+            startMusic(guide7, false);
+            step = 8;
+            Reset();
+          }
+        }
+        if(step == 8){
+          if(front){
+            flgFront = true;
+          }
+          if(flgFront){
+            if(left){
+              OK.play();
+              Start();
+            }
+          }
+          if(count == 1){
+            startMusic(guide8, false);
+            mode = 1;
+            step = 1;
+            Reset();
+          }
+        }
+    }
+    
+    if(mode == 1){
       if(step == 1){
         if(right){
           playTone(261.626);
@@ -586,6 +697,7 @@ function allStop(freq){
           step = 1;
         }
       }
+    }
 
 
 
