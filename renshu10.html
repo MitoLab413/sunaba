@@ -176,10 +176,30 @@ function showModal() {
       const left_hip = pL[POSE_LANDMARKS.LEFT_HIP];
       const left_knee = pL[POSE_LANDMARKS.LEFT_KNEE];
 
-      var is_bent = (calcAngle(right_knee,right_hip,right_shoulder).angle<=165) && (calcAngle(left_knee,left_hip,left_shoulder).angle<=165);
-      var is_back = (right_shoulder.z > right_hip.z) && (left_shoulder.z > left_hip.z);
+      const midknee = {
+        x: (right_knee.x + left_knee.x)/2,
+        y: (right_knee.y + left_knee.y)/2,
+        z: (right_knee.z + left_knee.z)/2,
+      };
 
-      return is_bent && is_back;
+      const midhip = {
+        x: (right_hip.x + left_hip.x)/2,
+        y: (right_hip.y + left_hip.y)/2,
+        z: (right_hip.z + left_hip.z)/2,
+      };
+
+      const midshoulder = {
+        x: (right_shoulder.x + left_shoulder.x)/2,
+        y: (right_shoulder.y + left_shoulder.y)/2,
+        z: (right_shoulder.z + left_shoulder.z)/2,
+      };
+
+      //var is_bent = (calcAngle(right_knee,right_hip,right_shoulder).angle>=160) && (calcAngle(left_knee,left_hip,left_shoulder).angle>=160);
+      var is_bent = calcAngle(midknee, midhip, midshoulder).angle >= 160
+      //var is_back = (right_shoulder.z > right_hip.z) && (left_shoulder.z > left_hip.z);
+      var is_top = (calcAngle(right_hip,right_shoulder,right_elbow).angle>=160)&&(calcAngle(right_hip,right_shoulder,right_elbow).angle<=180)&&(calcAngle(left_hip,left_shoulder,left_elbow).angle>=160)&&(calcAngle(left_hip,left_shoulder,left_elbow).angle<=180);//腕が真上にあるかどうか
+
+      return is_bent && is_top;
     }
 
 
@@ -336,7 +356,7 @@ function showModal() {
 
       //ここらへんで自分の関数の処理や音声の再生をしている、描画もやろうと思えばできるよ
       var resulttxt=/*"<br>右腰肩肘角度:"+RshoulderAngle(results)+"°</br><br>左腰肩肘角度:"+LshoulderAngle(results)+"°</br><br>左肩右肩肘角度："+LsReAngle(results)+"</br><br>右肩左肩肘角度："+RsLeAngle(results)+"</br>*/"<h1>step:"+step+"</h1><br><h1>count:"+count+"</h1></br>";
-      //var resulttxt="<br>右手首x座標:"+results.poseWorldLandmarks[POSE_LANDMARKS.RIGHT_WRIST].x+"</br><br>左手首x座標:"+results.poseWorldLandmarks[POSE_LANDMARKS.LEFT_WRIST].x+"°</br><br>右手首y座標："+results.poseWorldLandmarks[POSE_LANDMARKS.RIGHT_WRIST].y+"</br><br>左手首y座標："+results.poseWorldLandmarks[POSE_LANDMARKS.LEFT_WRIST].y+"</br><h1>step:"+step+"</h1><br><h1>count:"+count+"</h1></br>";
+      var resulttxt="<br>右目z座標:"+results.poseWorldLandmarks[POSE_LANDMARKS.RIGHT_EYE].z+"</br><br>左目z座標:"+results.poseWorldLandmarks[POSE_LANDMARKS.LEFT_EYE].z+"°</br><br>右肩z座標："+results.poseWorldLandmarks[POSE_LANDMARKS.RIGHT_SHOULDER].z+"</br><br>左肩z座標："+results.poseWorldLandmarks[POSE_LANDMARKS.LEFT_SHOULDER].z+"</br><h1>step:"+step+"</h1><br><h1>count:"+count+"</h1></br>";
 
       angleElement.innerHTML = resulttxt;
 

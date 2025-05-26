@@ -178,17 +178,19 @@ function showModal() {
       const pL = results.poseWorldLandmarks;
       const right_shoulder = pL[POSE_LANDMARKS.RIGHT_SHOULDER];
       const right_elbow = pL[POSE_LANDMARKS.RIGHT_ELBOW];
+      const right_wrist = pL[POSE_LANDMARKS.RIGHT_WRIST];
       const right_hip = pL[POSE_LANDMARKS.RIGHT_HIP];
       const right_knee = pL[POSE_LANDMARKS.RIGHT_KNEE];
       const left_shoulder = pL[POSE_LANDMARKS.LEFT_SHOULDER];
       const left_elbow = pL[POSE_LANDMARKS.LEFT_ELBOW];
+      const left_wrist = pL[POSE_LANDMARKS.LEFT_WRIST];
       const left_hip = pL[POSE_LANDMARKS.LEFT_HIP];
       const left_knee = pL[POSE_LANDMARKS.LEFT_KNEE];
 
       //var is_stretch =  (calcAngle(right_shoulder,right_elbow,right_wrist).angle>=160)&&(calcAngle(left_shoulder,left_elbow,left_wrist).angle>=160);//腕を伸ばしているかどうか
       var is_open_arms = (calcAngle(right_hip,right_shoulder,right_elbow).angle>=120)&&(calcAngle(right_hip,right_shoulder,right_elbow).angle<=170)&&(calcAngle(left_hip,left_shoulder,left_elbow).angle>=120)&&(calcAngle(left_hip,left_shoulder,left_elbow).angle<=170);//腕を広げているかどうか
       var is_open_legs = (right_hip.x > right_knee.x && left_hip.x < left_knee.x);
-      var is_side = right_elbow.x <= right_shoulder.x && left_elbow.x >= left_shoulder.x;
+      var is_side = (right_wrist.x <= right_shoulder.x && left_wrist.x >= left_shoulder.x);
 
       return is_open_arms && is_open_legs && is_side;
     }
@@ -397,6 +399,7 @@ function showModal() {
             if(flgCross2){
                 flgX = true;
                 OK.play();
+                counter += 1;
             }
         }
         if(flgX){
