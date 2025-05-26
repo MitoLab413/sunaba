@@ -62,7 +62,7 @@
   </style>
 </html>
 
-<script type="module">//身体をまわす運動の判定システム
+<script type="module">
 
 'use strict';//ストリクトモードの開始
 // モーダルを表示する関数
@@ -90,23 +90,33 @@ function showModal() {
 
     //効果音
     const ongen = new Audio('SE/ongen.mp3');
-    const announce = new Audio('SE/intro_10.mp3');
+    const announce = new Audio('SE/introduction4.mp3');
+    const guide1 = new Audio('SE/mune_guide.mp3');
+    const guide2 = new Audio('SE/udemawashi_guide2.mp3');
+    const step0 = new Audio('SE/step0.mp3');
+    const step1 = new Audio('SE/step1.mp3');
+    const REstep2 = new Audio('SE/REstep2.mp3');
+    const step3 = new Audio('SE/step3.mp3');
+    const great = new Audio('SE/great.mp3');
+    const REstep4 = new Audio('SE/REstep4.mp3');
+    const radio = new Audio('SE/radio_using.mp3');
     const OK = new Audio('SE/OKsound.mp3');
-    const guide1 = new Audio('SE/guide10-1.mp3');
-    const guide2 = new Audio('SE/guide10-2.mp3');
-    const guide3 = new Audio('SE/guide10-3.mp3');
-    
+    const hirogatte = new Audio('SE/hirogatte.mp3');
+    const agarikitte = new Audio('SE/agarikitte.mp3');
+    const yokokara = new Audio('SE/yokokara.mp3');
 
     //効果音を管理するための変数
     let nowPlay = announce;
     let flgMusic = false;
     let flgAngle = false;
     let flgStart = false;
-    let flgFront = false;
+    let flgCross = false;
+    let flgCross2 = false;
     let flgSide = false;
-    let flgMiss = false;
+    let flgX = false;
     var step = 0;
     var count = 0;
+    var counter = 0;
 
     const resetMusic = (nowPlay) => {
             if (flgMusic) nowPlay.pause();
@@ -144,28 +154,27 @@ function showModal() {
         }
 
 
-
-    //身体が前に倒れた姿勢
-    function body_front(results){
+    //腕が横にあがっているかどうかの計算
+    function armsSide(results){
       const pL = results.poseWorldLandmarks;
       const right_shoulder = pL[POSE_LANDMARKS.RIGHT_SHOULDER];
+      const right_elbow = pL[POSE_LANDMARKS.RIGHT_ELBOW];
       const right_wrist = pL[POSE_LANDMARKS.RIGHT_WRIST];
       const right_hip = pL[POSE_LANDMARKS.RIGHT_HIP];
-      const right_knee = pL[POSE_LANDMARKS.RIGHT_KNEE];
       const left_shoulder = pL[POSE_LANDMARKS.LEFT_SHOULDER];
+      const left_elbow = pL[POSE_LANDMARKS.LEFT_ELBOW];
       const left_wrist = pL[POSE_LANDMARKS.LEFT_WRIST];
       const left_hip = pL[POSE_LANDMARKS.LEFT_HIP];
-      const left_knee = pL[POSE_LANDMARKS.LEFT_KNEE];
 
-      var is_bent = (calcAngle(right_knee,right_hip,right_shoulder).angle<=90) && (calcAngle(left_knee,left_hip,left_shoulder).angle<=90);
-      var is_front = (right_wrist.y > right_knee.y) && (left_wrist.y > left_knee.y);
+      var is_stretch =  (calcAngle(right_shoulder,right_elbow,right_wrist).angle>=150)&&(calcAngle(left_shoulder,left_elbow,left_wrist).angle>=150);//腕を伸ばしているかどうか
+      var is_extended = (calcAngle(right_hip,right_shoulder,right_elbow).angle>=90)&&(calcAngle(right_hip,right_shoulder,right_elbow).angle<=130)&&(calcAngle(left_hip,left_shoulder,left_elbow).angle>=90)&&(calcAngle(left_hip,left_shoulder,left_elbow).angle<=130);//腕を広げているかどうか
+      var is_side = (calcAngle(right_shoulder,left_shoulder,left_elbow).angle>=160)&&(calcAngle(right_shoulder,left_shoulder,left_elbow).angle<= 190)&&(calcAngle(left_shoulder,right_shoulder,right_elbow).angle>= 160)&&(calcAngle(left_shoulder,right_shoulder,right_elbow).angle<= 190);//前に手をあげてるかどうか
 
-      return is_bent && is_front;
+      return is_stretch && is_extended && is_side;//腕が伸びていて、かつ、腕が広がっていたらよいとする
     }
 
-
-    //身体が後ろに倒れた姿勢
-    function body_back(results){
+    //足を開いて腕が斜め上に上がっているかどうか
+    function bodyX(results){
       const pL = results.poseWorldLandmarks;
       const right_shoulder = pL[POSE_LANDMARKS.RIGHT_SHOULDER];
       const right_elbow = pL[POSE_LANDMARKS.RIGHT_ELBOW];
@@ -176,12 +185,24 @@ function showModal() {
       const left_hip = pL[POSE_LANDMARKS.LEFT_HIP];
       const left_knee = pL[POSE_LANDMARKS.LEFT_KNEE];
 
-      var is_bent = (calcAngle(right_knee,right_hip,right_shoulder).angle<=165) && (calcAngle(left_knee,left_hip,left_shoulder).angle<=165);
-      var is_back = (right_shoulder.z > right_hip.z) && (left_shoulder.z > left_hip.z);
-
-      return is_bent && is_back;
+      //var is_stretch =  (calcAngle(right_shoulder,right_elbow,right_wrist).angle>=160)&&(calcAngle(left_shoulder,left_elbow,left_wrist).angle>=160);//腕を伸ばしているかどうか
+      var is_open_arms = (calcAngle(right_hip,right_shoulder,right_elbow).angle>=120)&&(calcAngle(right_hip,right_shoulder,right_elbow).angle<=170)&&(calcAngle(left_hip,left_shoulder,left_elbow).angle>=120)&&(calcAngle(left_hip,left_shoulder,left_elbow).angle<=170);//腕を広げているかどうか
+      var is_open_legs = (right_hip.x > right_knee.x && left_hip.x < left_knee.x);
+      return is_open_arms && is_open_legs;
     }
+    
+    //腕がクロスしているかどうかの計算
+    function armsCross(results){
+      const pL = results.poseWorldLandmarks;
+      const right_wrist = pL[POSE_LANDMARKS.RIGHT_WRIST];
+      const right_hip = pL[POSE_LANDMARKS.RIGHT_HIP];
+      const left_hip = pL[POSE_LANDMARKS.LEFT_HIP];
+      const left_wrist = pL[POSE_LANDMARKS.LEFT_WRIST];
 
+      var is_cross =  (left_wrist.x - right_wrist.x <= 0);//手首の座標の比較
+      var is_high = (right_wrist.y < left_hip.y) && (left_wrist.y < right_hip.y);
+      return  is_cross && is_high;
+    }
 
     function Standard(results){
       const pL = results.poseWorldLandmarks;
@@ -304,6 +325,45 @@ function showModal() {
       count = 0;
     }
 
+    const audioContext = new (window.AudioContext || window.webkitAudioContext)()
+
+
+    // 周波数に対応する音階（ドレミファソラシド C4からC5まで）
+    //const frequencies = [261.63, 293.66, 329.63, 349.23, 392.00, 440.00, 493.88, 523.25]
+
+    // 指定した周波数で音を鳴らす関数
+    function playTone(freq) {
+      if (window.oscillator) return;
+      const oscillator = audioContext.createOscillator()
+      oscillator.frequency.setValueAtTime(freq, audioContext.currentTime)
+      oscillator.type = 'sine'
+
+      const gainNode = audioContext.createGain()
+      gainNode.gain.setValueAtTime(1.2, audioContext.currentTime)
+      //gainNode.gain.exponentialRampToValueAtTime(0.001, audioContext.currentTime + 1.5)
+      oscillator.connect(gainNode)
+      gainNode.connect(audioContext.destination)
+      oscillator.start()
+      //oscillator.stop(audioContext.currentTime + 1.5)
+      window.oscillator = oscillator;
+      window.gainNode = gainNode;
+    }
+
+    function changeTone(freq) {
+      if (window.oscillator) {
+      window.oscillator.frequency.setValueAtTime(freq, audioContext.currentTime);
+      // なめらかに変えたい場合は以下のようにする
+      //window.oscillator.frequency.linearRampToValueAtTime(freq, audioContext.currentTime + 0.2);
+      }
+    }
+    function allStop(freq){
+      if(window.oscillator){
+      window.oscillator.stop();
+      window.oscillator = null;
+      window.gainNode = null;
+      }
+    }
+
 
     //毎フレーム描画する関数
     function onResults(results) {
@@ -334,10 +394,12 @@ function showModal() {
                     {color: '#FF0000', lineWidth: 2});
       canvasCtx.restore();
 
-      //ここらへんで自分の関数の処理や音声の再生をしている、描画もやろうと思えばできるよ
-      var resulttxt=/*"<br>右腰肩肘角度:"+RshoulderAngle(results)+"°</br><br>左腰肩肘角度:"+LshoulderAngle(results)+"°</br><br>左肩右肩肘角度："+LsReAngle(results)+"</br><br>右肩左肩肘角度："+RsLeAngle(results)+"</br>*/"<h1>step:"+step+"</h1><br><h1>count:"+count+"</h1></br>";
-      //var resulttxt="<br>右手首x座標:"+results.poseWorldLandmarks[POSE_LANDMARKS.RIGHT_WRIST].x+"</br><br>左手首x座標:"+results.poseWorldLandmarks[POSE_LANDMARKS.LEFT_WRIST].x+"°</br><br>右手首y座標："+results.poseWorldLandmarks[POSE_LANDMARKS.RIGHT_WRIST].y+"</br><br>左手首y座標："+results.poseWorldLandmarks[POSE_LANDMARKS.LEFT_WRIST].y+"</br><h1>step:"+step+"</h1><br><h1>count:"+count+"</h1></br>";
 
+    
+
+      //ここらへんで自分の関数の処理や音声の再生をしている、描画もやろうと思えばできるよ
+      var resulttxt="<h1>右手首x座標:"+results.poseWorldLandmarks[POSE_LANDMARKS.RIGHT_WRIST].x+"</h1><h1>左手首x座標:"+results.poseWorldLandmarks[POSE_LANDMARKS.LEFT_WRIST].x+"</h1><h1>右手首y座標："+results.poseWorldLandmarks[POSE_LANDMARKS.RIGHT_WRIST].y+"</h1><h1>左手首y座標："+results.poseWorldLandmarks[POSE_LANDMARKS.LEFT_WRIST].y+"</h1>";
+      //var resulttxt="<h1>回数:"+counter+"</h1><h1>flgSide:"+flgSide+"</h1><h1>flgCross:"+flgCross+"</h1><h1>flgTop:"+flgCross2+"</h1>";
       angleElement.innerHTML = resulttxt;
 
 
@@ -348,27 +410,126 @@ function showModal() {
 
       if(results.poseWorldLandmarks[POSE_LANDMARKS.LEFT_ANKLE].visibility > 0.8 && results.poseWorldLandmarks[POSE_LANDMARKS.RIGHT_ANKLE].visibility > 0.8){
         if(step == 0){
-          startMusic(guide1, false);
           step = 1;
         }
       }
 
-      var front = body_front(results);
-      var back = body_back(results);
+      
+      var standard = Standard(results);
+      var X = bodyX(results);
+      var cross = armsCross(results);
+      var side = armsSide(results);
 
-      if(step == 1){
-        if(back){
-            if(flgFront){
-                OK.play();
-                count += 1;
-                flgFront = false;
+
+      playTone(0);
+
+      var X_zero = (results.poseWorldLandmarks[POSE_LANDMARKS.RIGHT_SHOULDER].x + results.poseWorldLandmarks[POSE_LANDMARKS.LEFT_SHOULDER].x)/2;
+      var midX = (results.poseWorldLandmarks[POSE_LANDMARKS.RIGHT_WRIST].x + results.poseWorldLandmarks[POSE_LANDMARKS.LEFT_WRIST].x)/2;
+      var midY = (results.poseWorldLandmarks[POSE_LANDMARKS.RIGHT_WRIST].y + results.poseWorldLandmarks[POSE_LANDMARKS.LEFT_WRIST].y)/2;
+
+
+      
+      /*if(results.poseWorldLandmarks[POSE_LANDMARKS.RIGHT_WRIST].x < X_zero && results.poseWorldLandmarks[POSE_LANDMARKS.RIGHT_WRIST].y > -0.1){
+        changeTone(293.66);
+      }
+
+      if(results.poseWorldLandmarks[POSE_LANDMARKS.RIGHT_WRIST].x < X_zero && results.poseWorldLandmarks[POSE_LANDMARKS.RIGHT_WRIST].y < -0.2){
+        changeTone(261.63);
+      }
+
+      if(results.poseWorldLandmarks[POSE_LANDMARKS.RIGHT_WRIST].x > X_zero && results.poseWorldLandmarks[POSE_LANDMARKS.RIGHT_WRIST].y > -0.1){
+        changeTone(329.63);
+      }
+
+      if(results.poseWorldLandmarks[POSE_LANDMARKS.RIGHT_WRIST].x > X_zero && results.poseWorldLandmarks[POSE_LANDMARKS.RIGHT_WRIST].y < -0.2){
+        changeTone(349.23);
+      }
+
+      if(results.poseWorldLandmarks[POSE_LANDMARKS.RIGHT_WRIST].x > X_zero && results.poseWorldLandmarks[POSE_LANDMARKS.RIGHT_WRIST].y < -0.4){
+        changeTone(392.00);
+      }
+
+      if(results.poseWorldLandmarks[POSE_LANDMARKS.RIGHT_WRIST].x > X_zero && results.poseWorldLandmarks[POSE_LANDMARKS.RIGHT_WRIST].y > -0.9 && results.poseWorldLandmarks[POSE_LANDMARKS.RIGHT_WRIST].y < -0.6){
+        changeTone(444.00);
+      }
+
+      if(results.poseWorldLandmarks[POSE_LANDMARKS.RIGHT_WRIST].y < -0.9){
+        changeTone(493.88);
+      }
+
+      if(results.poseWorldLandmarks[POSE_LANDMARKS.RIGHT_WRIST].x < X_zero && results.poseWorldLandmarks[POSE_LANDMARKS.RIGHT_WRIST].y > -0.9 && results.poseWorldLandmarks[POSE_LANDMARKS.RIGHT_WRIST].y < -0.6){
+        changeTone(523.25);
+      }*/
+
+      if(midX < X_zero && midY > -0.1){
+        changeTone(293.66);
+      }
+
+      if(midX < X_zero && midY < -0.2){
+        changeTone(261.63);
+      }
+
+      if(midX > X_zero && midY > -0.1){
+        changeTone(329.63);
+      }
+
+      if(midX > X_zero && midY < -0.2){
+        changeTone(349.23);
+      }
+
+      if(midX && midY < -0.4){
+        changeTone(392.00);
+      }
+
+      if(midX > X_zero && midY > -0.9 && midY < -0.6){
+        changeTone(444.00);
+      }
+
+      if(midY < -0.9){
+        changeTone(493.88);
+      }
+
+      if(midX < X_zero && midY > -0.9 && midY < -0.6){
+        changeTone(523.25);
+      }
+
+      /*if(step == 1){
+        if(cross){
+            flgCross = true;
+            flgX = false;
+            if(flgSide){
+                flgCross2 = true;
             }
         }
-        if(front){
-            flgFront = true;
+        if(side){
+            if(flgCross){
+                flgSide = true;
+            }
         }
-      }
-      
+        if(X){
+            if(flgCross2){
+                flgX = true;
+                OK.play();
+            }
+        }
+        if(flgX){
+          if(side){
+            flgCross = false;
+            flgCross2 = false;
+            flgSide = false;
+          }
+            /*Start();
+            if(count >= 2){
+              flgCross = false;
+              flgCross2 = false;
+              flgSide = false;
+              Reset();
+            }
+        }
+        
+      }*/
+
+
 
 
       //grid.updateLandmarks(results.poseWorldLandmarks);
