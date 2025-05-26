@@ -217,11 +217,11 @@ function showModal() {
       const left_hip = pL[POSE_LANDMARKS.LEFT_HIP];
       const left_knee = pL[POSE_LANDMARKS.LEFT_KNEE];
 
-      var is_stretch =  (calcAngle(right_shoulder,right_elbow,right_wrist).angle>=160)&&(calcAngle(left_shoulder,left_elbow,left_wrist).angle>=160);//腕を伸ばしているかどうか
+      var is_stretch =  (calcAngle(right_shoulder,right_elbow,right_wrist).angle>=150)&&(calcAngle(left_shoulder,left_elbow,left_wrist).angle>=150);//腕を伸ばしているかどうか
       var is_open_arms = (calcAngle(right_hip,right_shoulder,right_elbow).angle>=130)&&(calcAngle(right_hip,right_shoulder,right_elbow).angle<=170)&&(calcAngle(left_hip,left_shoulder,left_elbow).angle>=130)&&(calcAngle(left_hip,left_shoulder,left_elbow).angle<=170);//腕を広げているかどうか
-      //var is_side = right_wrist.z >= right_shoulder.z && left_wrist.z >= left_shoulder.z;
+      var is_side = right_wrist.x <= right_shoulder.x && left_wrist.x >= left_shoulder.x;
       var is_open_legs = (right_hip.x > right_knee.x && left_hip.x < left_knee.x);
-      return is_stretch && is_open_arms && is_open_legs;
+      return is_stretch && is_open_arms && is_side && is_open_legs;
     }
     
     //腕がクロスしているかどうかの計算
