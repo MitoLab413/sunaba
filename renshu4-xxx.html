@@ -92,13 +92,14 @@ function showModal() {
     const ongen = new Audio('SE/ongen.mp3');
     const announce = new Audio('SE/introduction4.mp3');
     const OK = new Audio('SE/OKsound.mp3');
-    const guide = new Audio('SE/start_voice.mp3');
-    const guide1 = new Audio('SE/step4-1-1.mp3');
-    const guide2 = new Audio('SE/step4-1-2.mp3');
-    const guide3 = new Audio('SE/step4-1-3.mp3');
-    const guide4 = new Audio('SE/step4-1-4.mp3');
-    const guide5 = new Audio('SE/step4-1-5.mp3');
-    const guide6 = new Audio('SE/step4-1-6.mp3');
+    const guide = new Audio('SE/explain.mp3');
+    const guide1 = new Audio('SE/guide4-1-1.mp3');
+    const guide2 = new Audio('SE/guide4-1-2.mp3');
+    const guide3 = new Audio('SE/guide4-1-3.mp3');
+    const guide4 = new Audio('SE/guide4-1-4.mp3');
+    const guide5 = new Audio('SE/guide4-1-5.mp3');
+    const guide6 = new Audio('SE/guide4-1-6.mp3');
+    const guide7 = new Audio('SE/guide4-1-7.mp3');
     const attention = new Audio('SE/attention4-2-1.mp3');
     const kakunin_guide = new Audio('SE/step4-2-1.mp3');
     const renshu_guide1 = new Audio('SE/step4-3-1.mp3');
@@ -139,8 +140,8 @@ function showModal() {
         const allowMusic = () => {
             if (!flgMusic) nowPlay.play();
             flgMusic = true;
-            ongen.load();
-            guide1.load();
+            //ongen.load();
+            //guide1.load();
         }
         /**
          * 音楽の関数
@@ -555,154 +556,134 @@ function allStop(freq){
       }
 
 
-      if(mode == 0){
-        if(results.poseWorldLandmarks[POSE_LANDMARKS.LEFT_ANKLE].visibility > 0.8 && results.poseWorldLandmarks[POSE_LANDMARKS.RIGHT_ANKLE].visibility > 0.8){
-          if(step == 0){
-            startMusic(guide, false);
-            step = 1;
-          }
+        if(mode == 0){
+            if(results.poseWorldLandmarks[POSE_LANDMARKS.LEFT_ANKLE].visibility > 0.8 && results.poseWorldLandmarks[POSE_LANDMARKS.RIGHT_ANKLE].visibility > 0.8){
+        
+            if(step == 0){
+                startMusic(guide, false);//ポイントを言葉で説明します。説明を聞いて体を動かしてみましょう
+
+                guide.onended = () => {
+                    startMusic(guide1, false);//まずは足を肩幅に開きます。運動中、足は動かしません。
+                };
+
+                guide1.onended =() => {
+                    step = 1;                
+                }
+                
+                step = 0.5;
+            }
+            }
+            if(step == 1){
+                if(open){
+                    startMusic(OK, false);
+                    step = 1.5;
+                }
+
+                OK.onended = () => {
+                    startMusic(guide2, false);//腕を交差します。肩の高さでしっかり交差しましょう
+                }
+
+                guide2.onended = () => {
+                    step = 2;
+                }
+            }
+            if(step == 2){
+                if(cross){
+                    startMusic(OK, false);
+                    step = 2.5;
+                }
+                
+                OK.onended = () => {
+                    startMusic(guide3, false);//腕を振って肩の高さで真横に広げる姿勢になる
+                }
+
+                guide3.onended = () => {
+                    step = 3;
+                }
+            }
+            if(step == 3){
+                if(side){
+                    startMusic(OK, false);
+                    step = 3.5;
+                }
+
+                OK.onended = () => {
+                    startMusic(guide4, false);//腕を振り戻して、最初の姿勢に戻りましょう
+                }
+
+                guide4.onended = () => {
+                    step = 4;
+                }
+            }
+            if(step == 4){
+                if(cross){
+                    startMusic(OK, false);
+                    step = 4.5;
+                }
+                
+                OK.onended = () => {
+                    startMusic(guide5, false);//腕をさらに振り上げて、斜め上にあげましょう
+                }
+
+                guide5.onended = () => {
+                    step = 5;
+                }
+            }
+            if(step == 5){
+                if(X){
+                    startMusic(OK, false);
+                    step = 5.5;
+                }
+
+                OK.onended = () => {
+                    startMusic(guide6, false);//最初の姿勢に戻りましょう
+                }
+                guide6.onended = () => {
+                    step = 6;
+                }
+            }
+            if(step == 6){
+                if(cross){
+                    startMusic(guide7, false);//よくできました
+                    step = 6.5;
+                }
+
+                guide7.onended = () => {
+                    mode = 1;
+                    step = 0;
+                }
+            }
+        
         }
-        if(step == 1){
-          startMusic(guide1, false);
-          step = 2;
-        }
-        if(step == 2){
-          if(open){
-            OK.play();
-            Start();
-          }
-          if(count == 1){
-            startMusic(guide2, false);
-            step = 3;
-            Reset();
-          }
-        }
-        if(step == 3){
-          if(cross){
-            OK.play();
-            Start();
-          }
-          if(count == 1){
-            startMusic(guide3, false);
-            step = 4;
-            Reset();
-          }
-        }
-        if(step == 4){
-          if(standard){
-            startMusic(guide4, false);
-            step = 5;
-          }
-        }
-        if(step == 5){
-          if(side){
-            OK.play();
-            Start();
-          }
-          if(count == 1){
-            startMusic(guide3, false);
-            Reset()
-            step = 6;
-          }
-        }
-        if(step == 6){
-          if(standard){
-            startMusic(guide5, false);
-            step = 7;
-          }
-        }
-        if(step == 7){
-          if(X){
-            OK.play();
-            Start();
-          }
-          if(count == 1){
-            startMusic(guide3, false);
-            Reset();
-            step = 8;
-          }
-        }
-        if(step == 8){
-          if(standard){
-            startMusic(guide6, false);
-            mode = 1;
-            step = 0;
-          }
-        }
-      }
+
 
       if(mode == 1){
         if(step == 0){
-          if(cross){
-            startMusic(OK, false);
+          startMusic(renshu_guide1, false)
+          step = 0.5;
+          renshu_guide1.onended = () => {
             step = 1;
           }
         }
         if(step == 1){
-          if(side){
-            startMusic(OK, false);
-            step = 2;
-          }
-        }
-        if(step == 2){
-          if(cross){
-            startMusic(OK, false);
-            step = 3;
-          }
-          if(X){
-            startMusic(attention, false);
-            step = 0;
-          }
-        }
-        if(step == 3){
-          if(X){
-            startMusic(OK, false);
-            step = 4;
-            Start();
-          }
-        }
-        if(step == 4){
-          if(count == 2){
-            startMusic(kakunin_guide, false);
-            Reset();
-            step = 5;
-          }
-        }
-        if(step == 5){
-          Start();
-          step = 6;
-        }
-        if(step == 6){
-          if(count == 5){
-            mode += 1;
-            step = 0;
-            Reset();
-          }
-        }
-      }
-
-
-      if(mode == 2){
-        if(step == 0){
-          startMusic(renshu_guide1, false)
-          Start();
-          step = 1;
-        }
-        if(step == 1){
-          if(count == 12){
-            step = 2;
-            Reset();
-          }
-        }
-        if(step == 2){
           if(cross){
             playTone(261.626);
+            step = 2;
+          }
+        }
+        if(step == 2){
+          if(side){
+            playTone2(329.628);
             step = 3;
+          }
+          if(X){
+            allStop();
+            step = 1;
           }
         }
         if(step == 3){
-          if(side){
-            playTone2(329.628);
+          if(cross){
+            playTone3(391.995);
             step = 4;
           }
           if(X){
@@ -711,26 +692,16 @@ function allStop(freq){
           }
         }
         if(step == 4){
-          if(cross){
-            playTone3(391.995);
-            step = 5;
-          }
           if(X){
-            allStop();
-            step = 1;
+            playTone4(523.251);
+            step = 5;
           }
         }
         if(step == 5){
-          if(X){
-            playTone4(523.251);
-            step = 6;
-          }
-        }
-        if(step == 6){
           if(side){
             allStop();
             startMusic(renshu_guide, false);
-            step = 2;
+            step = 1;
           }
         }
       }
