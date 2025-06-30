@@ -195,12 +195,19 @@ function showModal() {
         z: (right_shoulder.z + left_shoulder.z)/2,
       };
 
-      //var is_bent = (calcAngle(right_knee,right_hip,right_shoulder).angle>=160) && (calcAngle(left_knee,left_hip,left_shoulder).angle>=160);
-      var is_bent = calcAngle(midknee, midhip, midshoulder).angle >= 160
-      //var is_back = (right_shoulder.z > right_hip.z) && (left_shoulder.z > left_hip.z);
-      var is_top = (calcAngle(right_hip,right_shoulder,right_elbow).angle>=160)&&(calcAngle(right_hip,right_shoulder,right_elbow).angle<=180)&&(calcAngle(left_hip,left_shoulder,left_elbow).angle>=160)&&(calcAngle(left_hip,left_shoulder,left_elbow).angle<=180);//腕が真上にあるかどうか
+      const midelbow = {
+        x: (right_elbow.x + left_elbow.x)/2,
+        y: (right_elbow.y + left_elbow.y)/2,
+        z: (right_elbow.z + left_elbow.z)/2,
+      };
 
-      return is_bent && is_top;
+      //var is_bent = (calcAngle(right_knee,right_hip,right_shoulder).angle>=160) && (calcAngle(left_knee,left_hip,left_shoulder).angle>=160);
+      var is_bent = calcAngle(midknee, midhip, midshoulder).angle <= 175;
+      var is_back = midhip.z < midshoulder.z;
+      //var is_top = (calcAngle(right_hip,right_shoulder,right_elbow).angle>=160)&&(calcAngle(right_hip,right_shoulder,right_elbow).angle<=180)&&(calcAngle(left_hip,left_shoulder,left_elbow).angle>=160)&&(calcAngle(left_hip,left_shoulder,left_elbow).angle<=180);//腕が真上にあるかどうか
+      var is_top = midelbow.y < midshoulder.y;
+
+      return is_bent && is_top && is_back;
     }
 
 

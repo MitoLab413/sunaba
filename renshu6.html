@@ -203,7 +203,7 @@ function showModal() {
       const left_hip = pL[POSE_LANDMARKS.LEFT_HIP];
       const left_knee = pL[POSE_LANDMARKS.LEFT_KNEE];
 
-      var is_bent = (calcAngle(right_knee,right_hip,right_shoulder).angle<=165) && (calcAngle(left_knee,left_hip,left_shoulder).angle<=165);
+      var is_bent = (calcAngle(right_knee,right_hip,right_shoulder).angle<=170) && (calcAngle(left_knee,left_hip,left_shoulder).angle<=170);
       var is_back = (right_shoulder.z > right_hip.z) && (left_shoulder.z > left_hip.z);
 
       return is_bent && is_back;

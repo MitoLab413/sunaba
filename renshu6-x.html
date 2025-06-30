@@ -92,8 +92,8 @@ function showModal() {
     const ongen = new Audio('SE/ongen.mp3');
     const announce = new Audio('SE/intro_6.mp3');
     const OK = new Audio('SE/OKsound.mp3');
-    const guide = new Audio('SE/start_voice.mp3');
-    const guide1 = new Audio('SE/step4-1-1.mp3');
+    const guide = new Audio('SE/explain.mp3');
+    const guide1 = new Audio('SE/guide4-1-1.mp3');
     const guide2 = new Audio('SE/guide6-1-2.mp3');
     const guide3 = new Audio('SE/guide6-1-3.mp3');
     const guide4 = new Audio('SE/guide6-1-4.mp3');
@@ -226,7 +226,7 @@ function showModal() {
       const left_hip = pL[POSE_LANDMARKS.LEFT_HIP];
       const left_knee = pL[POSE_LANDMARKS.LEFT_KNEE];
 
-      var is_bent = (calcAngle(right_knee,right_hip,right_shoulder).angle<=165) && (calcAngle(left_knee,left_hip,left_shoulder).angle<=165);
+      var is_bent = (calcAngle(right_knee,right_hip,right_shoulder).angle<=170) && (calcAngle(left_knee,left_hip,left_shoulder).angle<=170);
       var is_back = (right_shoulder.z > right_hip.z) && (left_shoulder.z > left_hip.z);
 
       return is_bent && is_back;
@@ -499,56 +499,55 @@ function allStop(freq){
     //学習モード
     if(mode == 0){
       if(results.poseWorldLandmarks[POSE_LANDMARKS.LEFT_ANKLE].visibility > 0.8 && results.poseWorldLandmarks[POSE_LANDMARKS.RIGHT_ANKLE].visibility > 0.8){
+        
         if(step == 0){
-          startMusic(guide, false);
-          step = 1;
+          startMusic(guide, false);//姿勢を言葉で説明します
+          step = 0.5;
+          guide.onended = () => {
+            step = 1;
+          }
         }
       }
       if(step == 1){
-          startMusic(guide1, false);
-          step = 2;
-        }
-        if(step == 2){
+          startMusic(guide1, false);//まずは足を肩幅に開きましょう
+          step = 1.5;
+          guide1.onended = () => {
+            step = 2;
+          }
+      }
+      if(step == 2){
           if(open){
-            OK.play();
-            Start();
+            startMusic(OK, false);
+            step = 2.5;
           }
-          if(count == 1){
-            startMusic(guide2, false);
+          OK.onended = () => {
+            startMusic(guide2, false);//次に膝が曲がらないようにして、体を前に倒します。手で足首をタッチできればOKです
+          }
+          guide2.onended = () => {
             step = 3;
-            Reset();
           }
+      }
+
+      //前屈を確認
+      if(step == 3){
+        if(front){
+          startMusic(OK, false);
+          step = 3.1;
         }
-        if(step == 3){
-          if(front){
-            OK.play();
-            Start();
-          }
-          if(count == 1){
-            startMusic(guide3, false);
-            step = 4;
-            Reset();
-          }
+        OK.onended = () => {
+          startMusic(guide3, false);//一度体を起こしましょう。今の前屈の姿勢、できる人は床をタッチするまで体を倒せると素晴らしいです
+          step = 3.5;
         }
-        if(step == 4){
-          if(bound){
-            OK.play();
-            Start();
-          }
-          if(count == 1){
-            startMusic(guide4, false);
-            step = 5;
-            Reset();
-          }
+        guide3.onended = () => {
+          startMusic(guide4, false);//今度は前屈の姿勢で、3回大きく弾みます。足首と膝を交互にタッチするように動いてみましょう
         }
-        if(step == 5){
-          if(standard){
-            startMusic(guide5, false);
-            step = 6;
-          }
+        guide4.onended = () => {
+          step = 4;
         }
+      }
+        
         //バウンド練習
-        if(step == 6){
+        if(step == 4){
           if(!flgBound){
             if(front){
               flgBound = true;
@@ -561,99 +560,53 @@ function allStop(freq){
             }
           }
           if(counter == 3){
-            OK.play();
-            Start();
-          }
-          if(count == 1){
-            startMusic(guide6, false);
-            step = 7;
-            Reset();
+            startMusic(OK, false);
+            counter = 3.5;
+            OK.onended = () => {
+              startMusic(guide5, false);//よくできました。体を起こしましょう
+            }
+            guide5.onended = () => {
+              step = 5;
+            }
           }
         }
+
         //反りの案内
-        if(step == 7){
+        if(step == 5){
           if(standard){
-            startMusic(guide7, false);
-            step = 8;
+            startMusic(guide6, false);//次は体を後ろに反っていきます。腰に手を当てて、膝が曲がらないようにしながら、ゆっくり反ってみましょう
+            step = 5.5;
+          }
+          guide6.onended = () => {
+            step = 6;
           }
         }
         //ここから反る
-        if(step == 8){
+        if(step == 6){
           if(back){
-            OK.play();
-            Start();
+            startMusic(OK, false);
+            step = 6.5;
           }
-          if(count == 1){
-            startMusic(guide8, false);//学習終了、次のモードへ
-            Reset();
-            mode = 1;
+          OK.onended = () => {
+            startMusic(guide5, false);//よくできました。体を起こしましょう。
+          }
+          guide5.onended = () => {
+            step = 7;
+          }
+        }
+        if(step == 7){
+          startMusic(guide7, false);//今行った、３回大きく弾んで前屈してから、体を後ろに反らす動き、これが体を前後に曲げる運動です。たくさん練習して、動きを覚えましょう
+          step = 7.5;
+          guide7.onended = () => {
             step = 2;
+            mode = 1;
           }
         }
     }
 
-    /*if(mode == 1){
-      if(step == 0){
-          if(front){
-            startMusic(OK, false);
-            step = 1;
-          }
-        }
-        if(step == 1){
-          if(side){
-            startMusic(OK, false);
-            step = 2;
-          }
-        }
-        if(step == 2){
-          if(cross){
-            startMusic(OK, false);
-            step = 3;
-          }
-          if(X){
-            startMusic(attention, false);
-            step = 0;
-          }
-        }
-        if(step == 3){
-          if(X){
-            startMusic(OK, false);
-            step = 4;
-            Start();
-          }
-        }
-        if(step == 4){
-          if(count == 2){
-            startMusic(kakunin_guide, false);
-            Reset();
-            step = 5;
-          }
-        }
-        if(step == 5){
-          Start();
-          step = 6;
-        }
-        if(step == 6){
-          if(count == 5){
-            mode += 1;
-            step = 0;
-            Reset();
-          }
-        }
-    }*/
-
+    
+    //練習モード
     if(mode == 1){
-      /*if(step == 0){
-          startMusic(renshu_guide1, false)
-          Start();
-          step = 1;
-      }*/
-      if(step == 1){
-          if(count == 12){
-            step = 2;
-            Reset();
-          }
-      }
       if(step == 2){
         if(front){
           playTone(261.626);
