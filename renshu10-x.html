@@ -101,8 +101,15 @@ function showModal() {
     const guide6 = new Audio('SE/guide10-1-6.mp3');
     const guide7 = new Audio('SE/guide10-1-7.mp3');
     const guide8 = new Audio('SE/guide10-1-8.mp3');
-    const guide10 = new Audio('SE/guide10-2.mp3');
-    const guide11 = new Audio('SE/guide10-3.mp3');
+    const guide9 = new Audio('SE/guide10-1-9.mp3');
+    const guide10 = new Audio('SE/guide10-1-10.mp3');
+    const guide11 = new Audio('SE/guide10-1-11.mp3');
+    const guide12 = new Audio('SE/guide10-1-12.mp3');
+    const guide13 = new Audio('SE/guide10-1-13.mp3');
+    const guide14 = new Audio('SE/guide10-1-14.mp3');
+    const guide15 = new Audio('SE/guide10-1-15.mp3');
+    const guide16 = new Audio('SE/guide10-2.mp3');
+    const guide17 = new Audio('SE/guide10-3.mp3');
 
     //効果音を管理するための変数
     let nowPlay = announce;
@@ -550,90 +557,181 @@ function allStop(freq){
       }
 
       if(step == 1){
-        startMusic(guide1, false);
-        step = 2;
+        startMusic(guide1, false);//足を肩幅に開きましょう
+        step = 1.5;
+        guide1.onended = () => {
+          step = 2;
+        }
       }
+
       if(step == 2){
         if(open){
-          OK.play();
-          Start();
+          startMusic(OK, false);
+          step = 2.5;
         }
-        if(count == 1){
-          startMusic(guide2, false);
+        OK.onended = () => {
+          startMusic(guide2, false);//両腕を伸ばして肩の高さまで上げ、体の右側に向けましょう。
+        }
+        guide2.onended = () => {
           step = 3;
-          Reset();
         }
       }
+
       if(step == 3){
         if(right){
-          OK.play();
-          Start();
+          startMusic(OK, false);
+          step = 3.5;
         }
-        if(count == 1){
-          startMusic(guide3, false);
+        OK.onended = () => {
+          startMusic(guide3, false);//これがスタートの姿勢です。ここから円を描くように、体を１周半、回していきます
+        }
+        guide3.onended = () => {
           step = 4;
-           Reset();
         }
       }
+
       if(step == 4){
-        if(front){
-          OK.play();
-          Start();
-        }
-        if(count == 1){
-          startMusic(guide4, false);
+        startMusic(guide4, false);//まずは時計回りからです。円を描くように両腕を下ろしながら、腰を曲げて前屈の姿勢になります。
+        step = 4.5;
+        guide4.onended = () => {
           step = 5;
-          Reset();
         }
       }
+
       if(step == 5){
-        if(left){
-          OK.play();
-          Start();
+        if(front){
+          startMusic(guide5, false);//そこから体を起こしながら。さらに円を描くようにして、両手を肩の高さまで挙げていきましょう。両腕は体の左側、はじめの姿勢の反対向きになっていれば、OKです
+          step = 5.5;
         }
-        if(count == 1){
-          startMusic(guide5, false);
+        guide5.onended = () => {
           step = 6;
-          Reset();
         }
       }
+
       if(step == 6){
-        if(back){
-          OK.play();
-          Start();
+        if(left){
+          startMusic(OK, false);
+          step = 6.5;
         }
-        if(count == 1){
-          startMusic(guide6, false);
+        OK.onended = () => {
+          startMusic(guide6, false);//さらに円を描きながら。両手が一番高いところで、体を軽く反らします。
+        }
+        guide6.onended = () => {
           step = 7;
-          Reset();
         }
       }
+
       if(step == 7){
-        if(right){
-          OK.play();
-          Start();
+        if(back){
+          startMusic(guide7, false);//円を描きながら両腕を肩の高さまでおろして、はじめの姿勢に戻りましょう。
+          step = 7.5;
         }
-        if(count == 1){
-          startMusic(guide7, false);
+        guide7.onended = () => {
           step = 8;
-          Reset();
         }
       }
+
       if(step == 8){
+        if(right){
+          startMusic(OK, false);
+          step = 8.5;
+        }
+        OK.onended = () => {
+          startMusic(guide8, false);//はじめと同じように体を回して、両手が肩の高さで体の左側に向くまで、あと半周してみましょう
+        }
+        guide8.onended = () => {
+          step = 9;
+        }
+
+        if(front){
+          flgFront = true;
+        }
+      }
+
+      if(step == 9){
         if(front){
           flgFront = true;
         }
         if(flgFront){
           if(left){
-            OK.play();
-            Start();
+            startMusic(OK, false);
+            step = 9.5;
           }
         }
-        if(count == 1){
-          startMusic(guide8, false);
-          mode = 1;
+        OK.onended = () => {
+          startMusic(guide9, false);//よくできました。ここまでが時計回りです。今の姿勢から、今度は反対回りで、体を１周半回してみましょう
+        }
+        guide9.onended = () => {
+          step = 10;
+          flgFront = false;
+        }
+      }
+      
+      if(step == 10){
+        startMusic(guide10, false);//まずは円を描きながら前屈の姿勢
+        step = 10.5;
+        guide10.onended = () => {
+          step = 11;
+        }
+      }
+
+      if(step == 11){
+        if(front){
+          startMusic(guide11, false);//円を描きながら体を起こして、腕は肩の高さで体の右側に
+          step = 11.5;
+        }
+        guide11.onended = () => {
+          step = 12;
+        }
+      }
+
+      if(step == 12){
+        if(right){
+          startMusic(guide12, false);//さらに円を描いて、両手が一番高いところで、軽く体を反らして
+          step = 12.5;
+        }
+        guide12.onended = () => {
+          step = 13;
+        }
+      }
+
+      if(step == 13){
+        if(back){
+          startMusic(guide13, false);//円を描きながら腕を下ろして最初の姿勢
+          step = 13.5;
+        }
+        guide13.onended = () => {
+          step = 14;
+        }
+      }
+
+      if(step == 14){
+        if(left){
+          startMusic(guide14, false);//同じように円を描きながら、両手が肩の高さで体の右側に向くまで、もう半周
+          step = 14.5;
+        }
+        guide14.onended = () => {
+          step = 15;
+        }
+        if(front){
+          flgFront = true;
+        }
+      }
+
+      if(step == 15){
+        if(front){
+          flgFront = true;
+        }
+        if(right){
+          if(flgFront){
+            startMusic(guide15, false);//よくできました。これが体を回す運動です。たくさん練習して動きを覚えましょう
+            step = 15.5;
+          }
+        }
+        guide15.onended = () => {
           step = 1;
-          Reset();
+          mode = 1;
+          flgFront = false;
         }
       }
     }
@@ -671,7 +769,7 @@ function allStop(freq){
       if(step == 5){
         if(left){
           allStop();
-          startMusic(guide10, false);
+          startMusic(guide16, false);
           step = 6;
         }
       }
@@ -718,7 +816,7 @@ function allStop(freq){
       if(step == 11){
         if(right){
           allStop();
-          startMusic(guide11, false);
+          startMusic(guide17, false);
           step = 12;
         }
       }
