@@ -2434,9 +2434,16 @@
         showModal();
     };
 
+    let lastProcessedTime = 0;
+    const interval = 100;
+
     const camera = new Camera(videoElement, {
       onFrame: async () => {
+        const now = Date.now();
+        if(now - lastProcessedTime > interval){
+          lastProcessedTime = now;
         await pose.send({image: videoElement});
+        }
       },
       width: 1280,
       height: 720
