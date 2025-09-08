@@ -216,8 +216,8 @@ function showModal() {
       };
 
       //var is_bent = (calcAngle(right_knee,right_hip,right_shoulder).angle>=160) && (calcAngle(left_knee,left_hip,left_shoulder).angle>=160);
-      var is_bent = calcAngle(midknee, midhip, midshoulder).angle <= 175;
-      var is_back = midhip.z < midshoulder.z;
+      var is_bent = calcAngle(midknee, midhip, midshoulder).angle <= 178;
+      var is_back = midhip.z < midelbow.z;
       //var is_top = (calcAngle(right_hip,right_shoulder,right_elbow).angle>=160)&&(calcAngle(right_hip,right_shoulder,right_elbow).angle<=180)&&(calcAngle(left_hip,left_shoulder,left_elbow).angle>=160)&&(calcAngle(left_hip,left_shoulder,left_elbow).angle<=180);//腕が真上にあるかどうか
       var is_top = midelbow.y < midshoulder.y;
 

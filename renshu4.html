@@ -104,6 +104,7 @@ function showModal() {
     const hirogatte = new Audio('SE/hirogatte.mp3');
     const agarikitte = new Audio('SE/agarikitte.mp3');
     const yokokara = new Audio('SE/yokokara.mp3');
+    const music = new Audio('SE/music_4-2.mp3');
 
     //効果音を管理するための変数
     let nowPlay = announce;
@@ -152,6 +153,14 @@ function showModal() {
                 nowPlay = music;
             }
         }
+
+
+        document.addEventListener('keydown', event => {
+    // 変数eventの中身はKeyboardEventオブジェクト
+          if(event.key === 'j'){
+            startMusic(music, false);
+          }
+        });
 
 
     //腕が横にあがっているかどうかの計算

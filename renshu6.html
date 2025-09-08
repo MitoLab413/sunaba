@@ -95,6 +95,7 @@ function showModal() {
     const guide1 = new Audio('SE/guide10-1.mp3');
     const guide2 = new Audio('SE/guide10-2.mp3');
     const guide3 = new Audio('SE/guide10-3.mp3');
+    const music = new Audio('SE/music_6-3.mp3');
     
 
     //効果音を管理するための変数
@@ -144,6 +145,14 @@ function showModal() {
         }
 
 
+        document.addEventListener('keydown', event => {
+    // 変数eventの中身はKeyboardEventオブジェクト
+          if(event.key === 'j'){
+            startMusic(music, false);
+          }
+        });
+
+
 
     //身体が前に倒れた姿勢
     function body_front(results){
@@ -187,7 +196,6 @@ function showModal() {
       var is_bound = (right_wrist.y < y_r) && (left_wrist.y < y_l);
 
       return is_bent && is_bound;
-
     }
 
     //身体が後ろに倒れた姿勢
@@ -509,14 +517,14 @@ function allStop(freq){
       if(step == 6){
         if(back){
           OK.play();
-          step = 7;
-        }
-      }
-      if(step == 7){
-        if(standard){
           step = 1;
         }
       }
+      /*if(step == 7){
+        if(standard){
+          step = 1;
+        }
+      }*/
 
 
 

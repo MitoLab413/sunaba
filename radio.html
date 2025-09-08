@@ -886,13 +886,13 @@
           results.image, 0, 0, canvasElement.width, canvasElement.height);
 
       canvasCtx.globalCompositeOperation = 'source-over';
-      //drawConnectors(canvasCtx, results.poseLandmarks, POSE_CONNECTIONS,
-        //             {color: '#00FF00', lineWidth: 4});
-      //drawLandmarks(canvasCtx, results.poseLandmarks,
-        //           {color: '#FF0000', lineWidth: 2});
+      drawConnectors(canvasCtx, results.poseLandmarks, POSE_CONNECTIONS,
+                     {color: '#00FF00', lineWidth: 4});
+      drawLandmarks(canvasCtx, results.poseLandmarks,
+                   {color: '#FF0000', lineWidth: 2});
       canvasCtx.restore();
 
-      //ここらへんで自分の関数の処理や音声の再生をしている、描画もやろうと思えばできるよ
+      //ここらへんで自分の関数の処理や音声の再生
       //var time="<h1>経過時間:"+count+"</h1>";
       //angleElement.innerHTML = time;
       countElement.innerHTML = "<font size = 5><p>時間:"+count+"s</p><br>合計:"+total+"/64回</br><br>背伸びの運動:"+top_count+"/2回</br><br>腕と脚の運動:"+side_count+"/8回</br><br>腕を回す運動:"+circle_count+"/8回</br><br>胸の運動:"+X_count+"/4回</br><br>横に曲げる運動:"+arms_over+"/8回</br><br>前後に曲げる運動:"+back_count+"/2回</br><br>ねじる運動:"+to_lr_count+"/4回</br><br>上下に伸ばす運動:"+up_down_count+"/4回</br><br>胸を反らす運動:"+chest_count+"/4回</br><br>大きく回す運動:"+cycle_count+"/4回</br><br>飛び跳ねる運動:"+jump_count+"/4回</br><br>腕と脚の運動:"+side_count2+"/8回</br><br>深呼吸:"+breath_count+"/4回</br></font>";
