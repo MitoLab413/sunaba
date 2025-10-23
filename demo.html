@@ -336,19 +336,73 @@
 
 // ---- Excel出力 ----
     function exportToExcel() {
+      const spacedData = [];
+      let prevExercise = null;
+
       if (logTable.length === 0) {
         alert("まだデータがありません！");
         return;
       }
+
+      for (const row of logTable) {
+      // 運動番号が変わったら空行を入れる
+        if (prevExercise != null && prevExercise != row.運動) {
+          spacedData.push({});
+        }
+        //spacedData.push(row);
+        prevExercise = row.運動;
+      }
+
       const worksheet = XLSX.utils.json_to_sheet(logTable);
       const workbook = XLSX.utils.book_new();
       XLSX.utils.book_append_sheet(workbook, worksheet, "Pose Logs");
       XLSX.writeFile(workbook, "pose_logs.xlsx");
     }
 
+    function exportSplitByExercise() {
+      if (!logTable || logTable.length === 0) {
+        alert("まだデータがありません！");
+        return;
+      }
+
+  // 運動ごとにデータをグループ化するための辞書（オブジェクト）
+      const grouped = {};
+
+      for (const row of logTable) {
+        const exercise = row.運動 || "未分類"; // 「運動」列の値をキーにする
+        if (!grouped[exercise]) {
+          grouped[exercise] = [];
+        }
+        grouped[exercise].push(row);
+      }
+
+  // 新しいブックを作成
+      const workbook = XLSX.utils.book_new();
+
+  // 各グループ（運動）ごとにシートを作成して追加
+      for (const [exerciseName, rows] of Object.entries(grouped)) {
+        const sheet = XLSX.utils.json_to_sheet(rows);
+    // シート名に使えない文字（例: /, \, ?, *, [ など）を避けるためサニタイズ
+        const safeName = exerciseName.replace(/[\\\/\?\*\[\]:]/g, "_");
+        //const safeName = `運動${sheetCount}`;
+        XLSX.utils.book_append_sheet(workbook, sheet, safeName);
+      }
+
+  // ファイル出力
+      XLSX.writeFile(workbook, "pose_logs_by_exercise.xlsx");
+    }
+
      button3.addEventListener('click',()=>{
-      exportToExcel();
+      exportSplitByExercise();
     })
+
+    function logData(exerciseName, data) {
+      logTable.push({
+        運動: exerciseName,
+        時間: count, 
+        ...data
+      });
+}
 
     
     //pose1とpose2からベクトルを作る関数
@@ -471,46 +525,236 @@
     }
 
 //肩の角度の算出
-      function shoulderAngle(results){
+      function RshoulderAngle(results){
         const pL = results.poseWorldLandmarks;
         const right_shoulder = pL[POSE_LANDMARKS.RIGHT_SHOULDER];
         const right_elbow = pL[POSE_LANDMARKS.RIGHT_ELBOW];
-        const right_wrist = pL[POSE_LANDMARKS.RIGHT_WRIST];
         const right_hip = pL[POSE_LANDMARKS.RIGHT_HIP];
-        const left_shoulder = pL[POSE_LANDMARKS.LEFT_SHOULDER];
-        const left_elbow = pL[POSE_LANDMARKS.LEFT_ELBOW];
-        const left_wrist = pL[POSE_LANDMARKS.LEFT_WRIST];
-        const left_hip = pL[POSE_LANDMARKS.LEFT_HIP];
 
         return calcAngle(right_hip, right_shoulder, right_elbow).angle;
       }
+
+      function LshoulderAngle(results){
+        const pL = results.poseWorldLandmarks;
+        const left_shoulder = pL[POSE_LANDMARKS.LEFT_SHOULDER];
+        const left_elbow = pL[POSE_LANDMARKS.LEFT_ELBOW];
+        const left_hip = pL[POSE_LANDMARKS.LEFT_HIP];
+
+        return calcAngle(left_hip, left_shoulder, left_elbow).angle;
+      }
+
+//腕の前後の角度の算出
+      function RarmAngle(results){
+        const pL = results.poseWorldLandmarks;
+        const right_shoulder = pL[POSE_LANDMARKS.RIGHT_SHOULDER];
+        const right_elbow = pL[POSE_LANDMARKS.RIGHT_ELBOW];
+        const left_shoulder = pL[POSE_LANDMARKS.LEFT_SHOULDER];
+
+        return calcAngle(left_shoulder, right_shoulder, right_elbow).angle;
+      }
+
+      function LarmAngle(results){
+        const pL = results.poseWorldLandmarks;
+        const left_shoulder = pL[POSE_LANDMARKS.LEFT_SHOULDER];
+        const left_elbow = pL[POSE_LANDMARKS.LEFT_ELBOW];
+        const right_shoulder = pL[POSE_LANDMARKS.RIGHT_SHOULDER];
+
+        return calcAngle(right_shoulder, left_shoulder, left_elbow).angle;
+      }
+
 //肘の角度の算出
-      function elbowAngle(results){
+      function RelbowAngle(results){
         const pL = results.poseWorldLandmarks;
         const right_shoulder = pL[POSE_LANDMARKS.RIGHT_SHOULDER];
         const right_elbow = pL[POSE_LANDMARKS.RIGHT_ELBOW];
         const right_wrist = pL[POSE_LANDMARKS.RIGHT_WRIST];
-        const right_hip = pL[POSE_LANDMARKS.RIGHT_HIP];
-        const left_shoulder = pL[POSE_LANDMARKS.LEFT_SHOULDER];
-        const left_elbow = pL[POSE_LANDMARKS.LEFT_ELBOW];
-        const left_wrist = pL[POSE_LANDMARKS.LEFT_WRIST];
-        const left_hip = pL[POSE_LANDMARKS.LEFT_HIP];
 
         return calcAngle(right_shoulder, right_elbow, right_wrist).angle;
       }
-//右手首の座標の算出
+
+      function LelbowAngle(results){
+        const pL = results.poseWorldLandmarks;
+        const left_shoulder = pL[POSE_LANDMARKS.LEFT_SHOULDER];
+        const left_elbow = pL[POSE_LANDMARKS.LEFT_ELBOW];
+        const left_wrist = pL[POSE_LANDMARKS.LEFT_WRIST];
+
+        return calcAngle(left_shoulder, left_elbow, left_wrist).angle;
+      }
+
+      //腰の角度の算出
+      function RhipAngle(results){
+        const pL = results.poseWorldLandmarks;
+        const right_shoulder = pL[POSE_LANDMARKS.RIGHT_SHOULDER];
+        const right_hip = pL[POSE_LANDMARKS.RIGHT_HIP];
+        const right_knee = pL[POSE_LANDMARKS.RIGHT_KNEE];
+
+        return calcAngle(right_shoulder, right_hip, right_knee).angle;
+      }
+
+      function LhipAngle(results){
+        const pL = results.poseWorldLandmarks;
+        const left_shoulder = pL[POSE_LANDMARKS.LEFT_SHOULDER];
+        const left_hip = pL[POSE_LANDMARKS.LEFT_HIP];
+        const left_knee = pL[POSE_LANDMARKS.LEFT_KNEE];
+
+        return calcAngle(left_shoulder, left_hip, left_knee).angle;
+      }
+
+//手首の座標の算出
       function rightWristX(results){
         const pL = results.poseWorldLandmarks;
         const right_wrist = pL[POSE_LANDMARKS.RIGHT_WRIST];
 
-        return right_wrist.x;
+        return right_wrist.x*100;
       }
-//左手首の座標の算出
+
       function leftWristX(results){
         const pL = results.poseWorldLandmarks;
         const left_wrist = pL[POSE_LANDMARKS.LEFT_WRIST];
 
-        return left_wrist.x;
+        return left_wrist.x*100;
+      }
+
+      function rightWristY(results){
+        const pL = results.poseWorldLandmarks;
+        const right_wrist = pL[POSE_LANDMARKS.RIGHT_WRIST];
+
+        return right_wrist.y*100;
+      }
+
+      function leftWristY(results){
+        const pL = results.poseWorldLandmarks;
+        const left_wrist = pL[POSE_LANDMARKS.LEFT_WRIST];
+
+        return left_wrist.y*100;
+      }
+
+//heightの算出
+      function Height(results){
+        const pL = results.poseWorldLandmarks;
+        const right_hip = pL[POSE_LANDMARKS.RIGHT_HIP];
+        const left_hip = pL[POSE_LANDMARKS.LEFT_HIP];
+        const right_shoulder = pL[POSE_LANDMARKS.RIGHT_SHOULDER];
+        const left_shoulder = pL[POSE_LANDMARKS.LEFT_SHOULDER];
+        var height = ((right_shoulder.y + left_shoulder.y) + ((right_hip.y + left_hip.y)/2))/3;
+
+        return height;
+      }
+
+//腰の座標の算出
+      function RhipX(results){
+        const pL = results.poseWorldLandmarks;
+        const right_hip = pL[POSE_LANDMARKS.RIGHT_HIP];
+
+        return right_hip.x*100;
+      }
+
+      function LhipX(results){
+        const pL = results.poseWorldLandmarks;
+        const left_hip = pL[POSE_LANDMARKS.LEFT_HIP];
+
+        return left_hip.x*100;
+      }
+
+      function RhipZ(results){
+        const pL = results.poseWorldLandmarks;
+        const right_hip = pL[POSE_LANDMARKS.RIGHT_HIP];
+
+        return right_hip.z*100;
+      }
+
+      function LhipZ(results){
+        const pL = results.poseWorldLandmarks;
+        const left_hip = pL[POSE_LANDMARKS.LEFT_HIP];
+
+        return left_hip.z*100;
+      }
+
+//膝の座標の算出
+      function RkneeX(results){
+        const pL = results.poseWorldLandmarks;
+        const right_knee = pL[POSE_LANDMARKS.RIGHT_KNEE];
+
+        return right_knee.x*100;
+      }
+
+      function LkneeX(results){
+        const pL = results.poseWorldLandmarks;
+        const left_knee = pL[POSE_LANDMARKS.LEFT_KNEE];
+
+        return left_knee.x*100;
+      }
+
+      function RkneeY(results){
+        const pL = results.poseWorldLandmarks;
+        const right_knee = pL[POSE_LANDMARKS.RIGHT_KNEE];
+
+        return right_knee.y*100;
+      }
+
+      function LkneeY(results){
+        const pL = results.poseWorldLandmarks;
+        const left_knee = pL[POSE_LANDMARKS.LEFT_KNEE];
+
+        return left_knee.y*100;
+      }
+
+      //肘の座標の算出
+      function RelbowY(results){
+        const pL = results.poseWorldLandmarks;
+        const right_elbow = pL[POSE_LANDMARKS.RIGHT_ELBOW];
+
+        return right_elbow.y*100;
+      }
+
+      function LelbowY(results){
+        const pL = results.poseWorldLandmarks;
+        const left_elbow = pL[POSE_LANDMARKS.LEFT_ELBOW];
+
+        return left_elbow.y*100;
+      }
+
+      //肩の座標の算出
+      function RshoulderX(results){
+        const pL = results.poseWorldLandmarks;
+        const right_shoulder = pL[POSE_LANDMARKS.RIGHT_SHOULDER];
+
+        return right_shoulder.x*100;
+      }
+
+      function RshoulderY(results){
+        const pL = results.poseWorldLandmarks;
+        const right_shoulder = pL[POSE_LANDMARKS.RIGHT_SHOULDER];
+
+        return right_shoulder.y*100;
+      }
+
+      function RshoulderZ(results){
+        const pL = results.poseWorldLandmarks;
+        const right_shoulder = pL[POSE_LANDMARKS.RIGHT_SHOULDER];
+
+        return right_shoulder.z*100;
+      }
+
+      function LshoulderX(results){
+        const pL = results.poseWorldLandmarks;
+        const left_shoulder = pL[POSE_LANDMARKS.LEFT_SHOULDER];
+
+        return left_shoulder.x*100;
+      }
+
+      function LshoulderY(results){
+        const pL = results.poseWorldLandmarks;
+        const left_shoulder = pL[POSE_LANDMARKS.LEFT_SHOULDER];
+
+        return left_shoulder.y*100;
+      }
+
+      function LshoulderZ(results){
+        const pL = results.poseWorldLandmarks;
+        const left_shoulder = pL[POSE_LANDMARKS.LEFT_SHOULDER];
+
+        return left_shoulder.z*100;
       }
 
     //腕が横からあがっているかどうかの計算
@@ -555,12 +799,15 @@
       const pL = results.poseWorldLandmarks;
       const right_wrist = pL[POSE_LANDMARKS.RIGHT_WRIST];
       const right_shoulder = pL[POSE_LANDMARKS.RIGHT_SHOULDER];
+      const right_hip = pL[POSE_LANDMARKS.RIGHT_HIP];
       const left_shoulder = pL[POSE_LANDMARKS.LEFT_SHOULDER];
       const left_wrist = pL[POSE_LANDMARKS.LEFT_WRIST];
+      const left_hip = pL[POSE_LANDMARKS.LEFT_HIP];
+      var height = ((right_shoulder.y + left_shoulder.y) + ((right_hip.y + left_hip.y)/2))/3;//内分点
 
-      var is_bent_elbow =  (left_wrist.x - right_wrist.x <= 0);//手首の座標の比較
-      //var is_low = (right_wrist.y < right_shoulder.y) && (left_wrist.y < left_shoulder.y);
-      return  is_bent_elbow;
+      var is_cross =  (left_wrist.x - right_wrist.x <= 0);//手首の座標の比較
+      var is_high = (right_wrist.y < height) && (left_wrist.y < height);
+      return  is_cross && is_high;
     }
 
     //4つ目の運動で使用
@@ -568,14 +815,16 @@
       const pL = results.poseWorldLandmarks;
       const right_shoulder = pL[POSE_LANDMARKS.RIGHT_SHOULDER];
       const right_elbow = pL[POSE_LANDMARKS.RIGHT_ELBOW];
+      const right_wrist = pL[POSE_LANDMARKS.RIGHT_WRIST];
       const right_hip = pL[POSE_LANDMARKS.RIGHT_HIP];
       const right_knee = pL[POSE_LANDMARKS.RIGHT_KNEE];
       const left_shoulder = pL[POSE_LANDMARKS.LEFT_SHOULDER];
       const left_elbow = pL[POSE_LANDMARKS.LEFT_ELBOW];
+      const left_wrist = pL[POSE_LANDMARKS.LEFT_WRIST];
       const left_hip = pL[POSE_LANDMARKS.LEFT_HIP];
       const left_knee = pL[POSE_LANDMARKS.LEFT_KNEE];
 
-      //var is_stretch =  (calcAngle(right_shoulder,right_elbow,right_wrist).angle>=160)&&(calcAngle(left_shoulder,left_elbow,left_wrist).angle>=160);//腕を伸ばしているかどうか
+      var is_stretch =  (calcAngle(right_shoulder,right_elbow,right_wrist).angle>=150)&&(calcAngle(left_shoulder,left_elbow,left_wrist).angle>=150);//腕を伸ばしているかどうか
       var is_open_arms = (calcAngle(right_hip,right_shoulder,right_elbow).angle>=120)&&(calcAngle(right_hip,right_shoulder,right_elbow).angle<=170)&&(calcAngle(left_hip,left_shoulder,left_elbow).angle>=120)&&(calcAngle(left_hip,left_shoulder,left_elbow).angle<=170);//腕を広げているかどうか
       var is_open_legs = (right_hip.x > right_knee.x && left_hip.x < left_knee.x);
       return is_open_arms && is_open_legs;
@@ -891,9 +1140,12 @@
 
 
     var intervalID;
+    let startTime = null;
 
     function Timer(){
-      count += 1;
+      const now = performance.now(); // 高精度な現在時刻（ms）
+      const elapsed = (now - startTime) / 1000; // 秒に変換
+      count = Math.round(elapsed * 100) / 100; // 小数第2位まで丸める
       //console.log(count);
     }
 
@@ -903,8 +1155,10 @@
 
     function Start(){
       if(intervalID == null){
-      intervalID = setInterval(Timer, 1000);
-    }}
+        startTime = performance.now(); // スタート時点を記録
+        intervalID = setInterval(Timer, 10); // 0.01秒ごとに表示
+      }
+    }
 
     function StartCount(){
       if(intervalID == null){
@@ -1016,7 +1270,7 @@
         Start();
       }
 
-      if(!flag_music && count == 2){
+      if(!flag_music && count >= 2.00){
         flag_music = true;
         SE["radio"].currentTime = 0;
         SE["radio"].play();
@@ -1663,12 +1917,14 @@ var Cangle = cameraAngle(results);
         //console.log(elbowAngle(results));
 
         //各角度を表に保存
-        logTable.push({
-          運動:1,
-          肘角度:elbowAngle(results),
-          肩角度:shoulderAngle(results),
-          右手首x座標:99,
-          左手首x座標:99,
+        logData(1, {
+          右肩角度:RshoulderAngle(results),
+          左肩角度:LshoulderAngle(results),
+          右肘角度:RelbowAngle(results),
+          左肘角度:LelbowAngle(results),
+          右腕角度:RarmAngle(results),
+          左腕角度:LarmAngle(results),
+          判定:flag_top,
         })
         /*if(!top && flag_top){
           flag_top = false;
@@ -1677,7 +1933,7 @@ var Cangle = cameraAngle(results);
       }
 
 
-      if(count >= 21 && count <= 35){ //腕と脚の運動判定
+      if(count >= 21 && count <= 34){ //腕と脚の運動判定
         var side = armsSide(results);
         var cross = armsCross(results);
 
@@ -1693,17 +1949,24 @@ var Cangle = cameraAngle(results);
         }
 
         //各角度を表に保存
-        logTable.push({
-          運動:2,
-          肘角度:elbowAngle(results),
-          肩角度:shoulderAngle(results),
-          右手首x座標:rightWristX(results),
-          左手首x座標:leftWristX(results),
+        logData(2, {
+          右肩角度:RshoulderAngle(results),
+          左肩角度:LshoulderAngle(results),
+          右肘角度:RelbowAngle(results),
+          左肘角度:LelbowAngle(results),
+          右腕角度:RarmAngle(results),
+          左腕角度:LarmAngle(results),
+          右手首x:rightWristX(results),
+          左手首x:leftWristX(results),
+          右手首y:rightWristY(results),
+          左手首y:leftWristY(results),
+          Height:Height(results),
+          判定:flag_side,
         })
       }
 
 
-      if(count >= 35 && count <= 50){ //腕を回す運動判定
+      if(count >= 35 && count <= 49){ //腕を回す運動判定
         var circle_top = armsTop(results);
         var cross = armsCross(results);
 
@@ -1717,9 +1980,26 @@ var Cangle = cameraAngle(results);
         if(cross){ //腕がクロスされたらフラグを下げる
           flag_top = false;
         }
+
+
+        logData(3, {
+          右肩角度:RshoulderAngle(results),
+          左肩角度:LshoulderAngle(results),
+          右肘角度:RelbowAngle(results),
+          左肘角度:LelbowAngle(results),
+          右腕角度:RarmAngle(results),
+          左腕角度:LarmAngle(results),
+          右手首x:rightWristX(results),
+          左手首x:leftWristX(results),
+          右手首y:rightWristY(results),
+          左手首y:leftWristY(results),
+          Height:Height(results),
+          判定:flag_top,
+        })
+        
       }
 
-      if(count >= 50 && count <= 66){ //身体を広げる運動判定
+      if(count >= 50 && count <= 65){ //身体を広げる運動判定
         var body_X = bodyX(results);
         var cross = armsCross(results);
 
@@ -1733,6 +2013,27 @@ var Cangle = cameraAngle(results);
         if(cross){ //クロスされたらフラグを下げる ここはarmsSideとかにしてもいいかも
           flag_X = false;
         }
+
+
+        logData(4, {
+          右肩角度:RshoulderAngle(results),
+          左肩角度:LshoulderAngle(results),
+          右肘角度:RelbowAngle(results),
+          左肘角度:LelbowAngle(results),
+          右腕角度:RarmAngle(results),
+          左腕角度:LarmAngle(results),
+          右手首x:rightWristX(results),
+          左手首x:leftWristX(results),
+          Height:Height(results),
+          右手首y:rightWristY(results),
+          左手首y:leftWristY(results),
+          右腰x:RhipX(results),
+          左腰x:LhipX(results),
+          右膝x:RkneeX(results),
+          左膝x:LkneeX(results),
+          判定:flag_X,
+        })
+        
       }
 
       if(count >= 66 && count <= 80){ //横を伸ばす運動判定
@@ -1751,9 +2052,26 @@ var Cangle = cameraAngle(results);
         if(right_down || left_down){ //左右どちらかの腕が横に伸ばした状態になったらフラグを下げる
           flag_arm = false;
         }
+
+        //各角度を表に保存
+        logData(5, {
+          右肩角度:RshoulderAngle(results),
+          左肩角度:LshoulderAngle(results),
+          右肘角度:RelbowAngle(results),
+          左肘角度:LelbowAngle(results),
+          右腕角度:RarmAngle(results),
+          左腕角度:LarmAngle(results),
+          右手首x:rightWristX(results),
+          左手首x:leftWristX(results),
+          右手首y:rightWristY(results),
+          左手首y:leftWristY(results),
+          右肩x:RshoulderX(results),
+          左肩x:LshoulderY(results),
+          判定:flag_arm,
+        })
       }
 
-      if(count >= 81 && count <= 94){ //身体を反らす運動判定
+      if(count >= 81 && count <= 93){ //身体を反らす運動判定
         var back = body_back(results);
         var front = body_front(results);
 
@@ -1767,8 +2085,24 @@ var Cangle = cameraAngle(results);
         if(front){ //身体を前屈したらフラグを下げる
           flag_back = false;
         }
+
+        //各角度を表に保存
+        logData(6, {
+          右手首y:rightWristY(results),
+          左手首y:leftWristY(results),
+          右腰角度:RhipAngle(results),
+          左腰角度:LhipAngle(results),
+          右膝y:RkneeY(results),
+          左膝y:LkneeY(results),
+          右腰z:RhipZ(results),
+          左腰z:LhipZ(results),
+          右肩z:RshoulderZ(results),
+          左肩z:LshoulderZ(results),
+          判定:flag_back,
+        })
       }
-      if(count == 94){
+
+      if(count == 94.00){
         if(!flag_ongen){
           if(Cangle < 70 || Cangle > 110){
             SE["ongen"].currentTime = 0;
@@ -1777,7 +2111,7 @@ var Cangle = cameraAngle(results);
           }
         }
       }
-      if(count == 95){
+      if(count == 95.00){
         flag_ongen = false;
       }
 
@@ -1796,9 +2130,28 @@ var Cangle = cameraAngle(results);
         if(r || l){ //身体を左右どちらかに軽くねじったらフラグを下げる
           flag_lr = false;
         }
+
+        //各角度を表に保存
+        logData(7, {
+          右肩角度:RshoulderAngle(results),
+          左肩角度:LshoulderAngle(results),
+          右手首x:rightWristX(results),
+          左手首x:leftWristX(results),
+          右手首y:rightWristY(results),
+          左手首y:leftWristY(results),
+          右肩x:RshoulderX(results),
+          左肩x:LshoulderX(results),
+          右肩y:RshoulderY(results),
+          左肩y:LshoulderY(results),
+          右膝x:RkneeX(results),
+          左膝x:LkneeX(results),
+          右腰x:RhipX(results),
+          左腰x:LhipX(results),
+          判定:flag_lr,
+        })        
       }
 
-      if(count == 109){
+      if(count == 109.00){
         if(!flag_ongen){
           if(Cangle < 70 || Cangle > 110){
             SE["ongen"].currentTime = 0;
@@ -1807,7 +2160,8 @@ var Cangle = cameraAngle(results);
           }
         }
       }
-      if(count == 110){
+
+      if(count == 110.00){
         flag_ongen = false;
       }
 
@@ -1825,6 +2179,21 @@ var Cangle = cameraAngle(results);
         if(down){ //腕を下げたらフラグを下げる
           flag_up = false;
         }
+
+        //各角度を表に保存
+        logData(8, {
+          右肩角度:RshoulderAngle(results),
+          左肩角度:LshoulderAngle(results),
+          右肘角度:RelbowAngle(results),
+          左肘角度:LelbowAngle(results),
+          右腕角度:RarmAngle(results),
+          左腕角度:LarmAngle(results),
+          右腰x:RhipX(results),
+          左腰x:LhipX(results),
+          右膝x:RkneeX(results),
+          左膝x:LkneeX(results),
+          判定:flag_up,
+        })
       }
 
       if(count >= 124 && count <= 138){ //体を斜め下に曲げ胸を反らす運動判定
@@ -1841,9 +2210,22 @@ var Cangle = cameraAngle(results);
           SE["OK"].currentTime = 0;
           SE["OK"].play();
         }
+
+        //各角度を表に保存
+        logData(9, {
+          右腰角度:RhipAngle(results),
+          左腰角度:LhipAngle(results),
+          右手首x:rightWristX(results),
+          左手首x:leftWristX(results),
+          右手首y:rightWristY(results),
+          左手首y:leftWristY(results),
+          右膝y:RkneeY(results),
+          左膝y:LkneeY(results),
+          判定:flag_chest,
+        })
       }
 
-      if(count >= 139 && count <= 154){ //10個目以降もcount振っといたけど一応確認お願いね
+      if(count >= 139 && count <= 153){ //10個目以降もcount振っといたけど一応確認お願いね
         var cycle = body_back(results);
         var front = body_front(results);
 
@@ -1857,9 +2239,24 @@ var Cangle = cameraAngle(results);
         if(front){
           flag_cycle = false;
         }
+
+        //各角度を表に保存
+        logData(10, {
+          右手首y:rightWristY(results),
+          左手首y:leftWristY(results),
+          右腰角度:RhipAngle(results),
+          左腰角度:LhipAngle(results),
+          右膝y:RkneeY(results),
+          左膝y:LkneeY(results),
+          右腰z:RhipZ(results),
+          左腰z:LhipZ(results),
+          右肩z:RshoulderZ(results),
+          左肩z:LshoulderZ(results),
+          判定:flag_cycle,
+        })
       }
 
-      if(count == 154){
+      if(count == 154.00){
         if(!flag_ongen){
           if(Cangle < 70 || Cangle > 110){
             SE["ongen"].currentTime = 0;
@@ -1868,11 +2265,11 @@ var Cangle = cameraAngle(results);
           }
         }
       }
-      if(count == 155){
+      if(count == 155.00){
         flag_ongen = false;
       }
 
-      if(count >= 154 && count <= 164){ //11個目
+      if(count >= 154 && count <= 163){ //11個目
         var jump = jumping(results);
         var down = armsDown(results);
 
@@ -1886,9 +2283,29 @@ var Cangle = cameraAngle(results);
           SE["OK"].currentTime = 0;
           SE["OK"].play();
         }
+
+        //各角度を表に保存
+        logData(11, {
+          右肩角度:RshoulderAngle(results),
+          左肩角度:LshoulderAngle(results),
+          右肘角度:RelbowAngle(results),
+          左肘角度:LelbowAngle(results),
+          右腕角度:RarmAngle(results),
+          左腕角度:LarmAngle(results),
+          右手首x:rightWristX(results),
+          左手首x:leftWristX(results),
+          右手首y:rightWristY(results),
+          左手首y:leftWristY(results),
+          右腰x:RhipX(results),
+          左腰x:LhipX(results),
+          右膝x:RkneeX(results),
+          左膝x:LkneeX(results),
+          Height:Height(results),
+          判定:flag_jump,
+        })
       }
 
-      if(count == 164){
+      if(count == 164.00){
         if(!flag_ongen){
           if(Cangle < 70 || Cangle > 110){
             SE["ongen"].currentTime = 0;
@@ -1897,7 +2314,7 @@ var Cangle = cameraAngle(results);
           }
         }
       }
-      if(count == 165){
+      if(count == 165.00){
         flag_ongen = false;
       }
 
@@ -1915,6 +2332,22 @@ var Cangle = cameraAngle(results);
           SE["OK"].currentTime = 0;
           SE["OK"].play();
         }
+
+        //各角度を表に保存
+        logData(12, {
+          右肩角度:RshoulderAngle(results),
+          左肩角度:LshoulderAngle(results),
+          右肘角度:RelbowAngle(results),
+          左肘角度:LelbowAngle(results),
+          右腕角度:RarmAngle(results),
+          左腕角度:LarmAngle(results),
+          右手首x:rightWristX(results),
+          左手首x:leftWristX(results),
+          右手首y:rightWristY(results),
+          左手首y:leftWristY(results),
+          Height:Height(results),
+          判定:flag_side2,
+        })
       }
 
       if(count >= 180 && count <= 196){ //13個目
@@ -1932,6 +2365,17 @@ var Cangle = cameraAngle(results);
           SE["OK"].currentTime = 0;
           SE["OK"].play();
         }
+
+        //各角度を表に保存
+        logData(13, {
+          右肩角度:RshoulderAngle(results),
+          左肩角度:LshoulderAngle(results),
+          右肘角度:RelbowAngle(results),
+          左肘角度:LelbowAngle(results),
+          右腕角度:RarmAngle(results),
+          左腕角度:LarmAngle(results),
+          判定:flag_top2,
+        })
       }
 
 

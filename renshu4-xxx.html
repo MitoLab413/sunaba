@@ -238,7 +238,7 @@ function showModal() {
       const left_elbow = pL[POSE_LANDMARKS.LEFT_ELBOW];
       const left_wrist = pL[POSE_LANDMARKS.LEFT_WRIST];
       const left_knee = pL[POSE_LANDMARKS.LEFT_KNEE];
-      var height = (((right_shoulder.y + left_shoulder.y)*3/2) + ((right_hip.y + left_hip.y)/2))/4;
+      var height = (((right_shoulder.y + left_shoulder.y)*3/2) + ((right_hip.y + left_hip.y)/2))/4;//内分点
 
       var is_cross =  (left_wrist.x <= right_hip.x) && (right_wrist.x >= left_hip.x);//手首の座標の比較
       var is_high = (right_elbow.y < height) && (left_elbow.y < height);
