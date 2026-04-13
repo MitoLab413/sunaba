@@ -9,6 +9,8 @@
   <script src="https://cdn.jsdelivr.net/npm/@mediapipe/drawing_utils/drawing_utils.js" crossorigin="anonymous"></script>
   <script src="https://cdn.jsdelivr.net/npm/@mediapipe/pose/pose.js" crossorigin="anonymous"></script>
   <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.6.4/jquery.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+
 
 </head>
 
@@ -24,6 +26,10 @@
     <canvas class="output_canvas" width="1280px" height="720px"></canvas> <!--描画するキャンパス-->
     <!--<div class="landmark-grid-container"></div>-->
     <div id="angle" font size = "5"></div><!--体の角度とかの出力先-->
+    <aside class = "side" id="count" font size = "5"></aside>
+    <div class = "tap">
+    <button type = "button" class ="button3" id = "button3" font size = "0.5">Excelに出力</button>
+    </div>
   </div>
 </body>
 <style>
@@ -59,6 +65,16 @@
     width: 80%;
     text-align: center;
     }
+  .side{
+  width: 30%;
+  line-height: 0.7;
+  }
+  .tap{
+    width:5%;
+  }
+  .button3{
+    height:50px;
+  }
   </style>
 </html>
 
@@ -116,6 +132,8 @@ function showModal() {
     var counter = 0;
     var mode = 0;
 
+    const logTable = [];//コンソールログの保存
+
     const resetMusic = (nowPlay) => {
             if (flgMusic) nowPlay.pause();
             nowPlay.currentTime = 0;
@@ -151,6 +169,51 @@ function showModal() {
             }
         }
 
+         // ---- Excel出力 ----
+
+    function exportSplitByExercise() {
+      if (!logTable || logTable.length === 0) {
+        alert("まだデータがありません！");
+        return;
+      }
+
+  // モードごとにデータをグループ化するための辞書（オブジェクト）
+      const grouped = {};
+
+      for (const row of logTable) {
+        const Mode = row.モード || "未分類"; // 「モード」列の値をキーにする
+        if (!grouped[Mode]) {
+          grouped[Mode] = [];
+        }
+        grouped[Mode].push(row);
+      }
+
+  // 新しいブックを作成
+      const workbook = XLSX.utils.book_new();
+
+  // 各グループ（モード）ごとにシートを作成して追加
+      for (const [ModeNumber, rows] of Object.entries(grouped)) {
+        const sheet = XLSX.utils.json_to_sheet(rows);
+    // シート名に使えない文字（例: /, \, ?, *, [ など）を避けるためサニタイズ
+        const safeName = ModeNumber.replace(/[\\\/\?\*\[\]:]/g, "_");
+        //const safeName = `運動${sheetCount}`;
+        XLSX.utils.book_append_sheet(workbook, sheet, safeName);
+      }
+
+  // ファイル出力
+      XLSX.writeFile(workbook, "pose_logs_exercise6_learning.xlsx");
+    }
+
+     button3.addEventListener('click',()=>{
+      exportSplitByExercise();
+    })
+
+    function logData(ModeNumber, data) {
+      logTable.push({
+        モード: ModeNumber,
+        ...data
+      });
+}
 
     //脚が左右に開いているかどうか
     function legsOpen(results){
@@ -332,6 +395,246 @@ function showModal() {
           "vector2":vector2,
       };
     }
+
+    //肩の角度の算出
+      function RshoulderAngle(results){
+        const pL = results.poseWorldLandmarks;
+        const right_shoulder = pL[POSE_LANDMARKS.RIGHT_SHOULDER];
+        const right_elbow = pL[POSE_LANDMARKS.RIGHT_ELBOW];
+        const right_hip = pL[POSE_LANDMARKS.RIGHT_HIP];
+
+        return calcAngle(right_hip, right_shoulder, right_elbow).angle;
+      }
+
+      function LshoulderAngle(results){
+        const pL = results.poseWorldLandmarks;
+        const left_shoulder = pL[POSE_LANDMARKS.LEFT_SHOULDER];
+        const left_elbow = pL[POSE_LANDMARKS.LEFT_ELBOW];
+        const left_hip = pL[POSE_LANDMARKS.LEFT_HIP];
+
+        return calcAngle(left_hip, left_shoulder, left_elbow).angle;
+      }
+
+//腕の前後の角度の算出
+      function RarmAngle(results){
+        const pL = results.poseWorldLandmarks;
+        const right_shoulder = pL[POSE_LANDMARKS.RIGHT_SHOULDER];
+        const right_elbow = pL[POSE_LANDMARKS.RIGHT_ELBOW];
+        const left_shoulder = pL[POSE_LANDMARKS.LEFT_SHOULDER];
+
+        return calcAngle(left_shoulder, right_shoulder, right_elbow).angle;
+      }
+
+      function LarmAngle(results){
+        const pL = results.poseWorldLandmarks;
+        const left_shoulder = pL[POSE_LANDMARKS.LEFT_SHOULDER];
+        const left_elbow = pL[POSE_LANDMARKS.LEFT_ELBOW];
+        const right_shoulder = pL[POSE_LANDMARKS.RIGHT_SHOULDER];
+
+        return calcAngle(right_shoulder, left_shoulder, left_elbow).angle;
+      }
+
+//肘の角度の算出
+      function RelbowAngle(results){
+        const pL = results.poseWorldLandmarks;
+        const right_shoulder = pL[POSE_LANDMARKS.RIGHT_SHOULDER];
+        const right_elbow = pL[POSE_LANDMARKS.RIGHT_ELBOW];
+        const right_wrist = pL[POSE_LANDMARKS.RIGHT_WRIST];
+
+        return calcAngle(right_shoulder, right_elbow, right_wrist).angle;
+      }
+
+      function LelbowAngle(results){
+        const pL = results.poseWorldLandmarks;
+        const left_shoulder = pL[POSE_LANDMARKS.LEFT_SHOULDER];
+        const left_elbow = pL[POSE_LANDMARKS.LEFT_ELBOW];
+        const left_wrist = pL[POSE_LANDMARKS.LEFT_WRIST];
+
+        return calcAngle(left_shoulder, left_elbow, left_wrist).angle;
+      }
+
+      //腰の角度の算出
+      function RhipAngle(results){
+        const pL = results.poseWorldLandmarks;
+        const right_shoulder = pL[POSE_LANDMARKS.RIGHT_SHOULDER];
+        const right_hip = pL[POSE_LANDMARKS.RIGHT_HIP];
+        const right_knee = pL[POSE_LANDMARKS.RIGHT_KNEE];
+
+        return calcAngle(right_shoulder, right_hip, right_knee).angle;
+      }
+
+      function LhipAngle(results){
+        const pL = results.poseWorldLandmarks;
+        const left_shoulder = pL[POSE_LANDMARKS.LEFT_SHOULDER];
+        const left_hip = pL[POSE_LANDMARKS.LEFT_HIP];
+        const left_knee = pL[POSE_LANDMARKS.LEFT_KNEE];
+
+        return calcAngle(left_shoulder, left_hip, left_knee).angle;
+      }
+
+//手首の座標の算出
+      function rightWristX(results){
+        const pL = results.poseWorldLandmarks;
+        const right_wrist = pL[POSE_LANDMARKS.RIGHT_WRIST];
+
+        return right_wrist.x*100;
+      }
+
+      function leftWristX(results){
+        const pL = results.poseWorldLandmarks;
+        const left_wrist = pL[POSE_LANDMARKS.LEFT_WRIST];
+
+        return left_wrist.x*100;
+      }
+
+      function rightWristY(results){
+        const pL = results.poseWorldLandmarks;
+        const right_wrist = pL[POSE_LANDMARKS.RIGHT_WRIST];
+
+        return right_wrist.y*100;
+      }
+
+      function leftWristY(results){
+        const pL = results.poseWorldLandmarks;
+        const left_wrist = pL[POSE_LANDMARKS.LEFT_WRIST];
+
+        return left_wrist.y*100;
+      }
+
+//heightの算出
+      function rightH(results){
+        const pL = results.poseWorldLandmarks;
+        const right_ankle = pL[POSE_LANDMARKS.RIGHT_ANKLE];
+        const right_knee = pL[POSE_LANDMARKS.RIGHT_KNEE];
+        var rightH = (right_ankle.y + right_knee.y)/2;
+
+        return rightH;
+      }
+
+      function leftH(results){
+        const pL = results.poseWorldLandmarks;
+        const left_ankle = pL[POSE_LANDMARKS.LEFT_ANKLE];
+        const left_knee = pL[POSE_LANDMARKS.LEFT_KNEE];
+        var leftH = (left_ankle.y + left_knee.y)/2;
+
+        return leftH;
+      }
+
+//腰の座標の算出
+      function RhipX(results){
+        const pL = results.poseWorldLandmarks;
+        const right_hip = pL[POSE_LANDMARKS.RIGHT_HIP];
+
+        return right_hip.x*100;
+      }
+
+      function LhipX(results){
+        const pL = results.poseWorldLandmarks;
+        const left_hip = pL[POSE_LANDMARKS.LEFT_HIP];
+
+        return left_hip.x*100;
+      }
+
+      function RhipZ(results){
+        const pL = results.poseWorldLandmarks;
+        const right_hip = pL[POSE_LANDMARKS.RIGHT_HIP];
+
+        return right_hip.z*100;
+      }
+
+      function LhipZ(results){
+        const pL = results.poseWorldLandmarks;
+        const left_hip = pL[POSE_LANDMARKS.LEFT_HIP];
+
+        return left_hip.z*100;
+      }
+
+//膝の座標の算出
+      function RkneeX(results){
+        const pL = results.poseWorldLandmarks;
+        const right_knee = pL[POSE_LANDMARKS.RIGHT_KNEE];
+
+        return right_knee.x*100;
+      }
+
+      function LkneeX(results){
+        const pL = results.poseWorldLandmarks;
+        const left_knee = pL[POSE_LANDMARKS.LEFT_KNEE];
+
+        return left_knee.x*100;
+      }
+
+      function RkneeY(results){
+        const pL = results.poseWorldLandmarks;
+        const right_knee = pL[POSE_LANDMARKS.RIGHT_KNEE];
+
+        return right_knee.y*100;
+      }
+
+      function LkneeY(results){
+        const pL = results.poseWorldLandmarks;
+        const left_knee = pL[POSE_LANDMARKS.LEFT_KNEE];
+
+        return left_knee.y*100;
+      }
+
+      //肘の座標の算出
+      function RelbowY(results){
+        const pL = results.poseWorldLandmarks;
+        const right_elbow = pL[POSE_LANDMARKS.RIGHT_ELBOW];
+
+        return right_elbow.y*100;
+      }
+
+      function LelbowY(results){
+        const pL = results.poseWorldLandmarks;
+        const left_elbow = pL[POSE_LANDMARKS.LEFT_ELBOW];
+
+        return left_elbow.y*100;
+      }
+
+      //肩の座標の算出
+      function RshoulderX(results){
+        const pL = results.poseWorldLandmarks;
+        const right_shoulder = pL[POSE_LANDMARKS.RIGHT_SHOULDER];
+
+        return right_shoulder.x*100;
+      }
+
+      function RshoulderY(results){
+        const pL = results.poseWorldLandmarks;
+        const right_shoulder = pL[POSE_LANDMARKS.RIGHT_SHOULDER];
+
+        return right_shoulder.y*100;
+      }
+
+      function RshoulderZ(results){
+        const pL = results.poseWorldLandmarks;
+        const right_shoulder = pL[POSE_LANDMARKS.RIGHT_SHOULDER];
+
+        return right_shoulder.z*100;
+      }
+
+      function LshoulderX(results){
+        const pL = results.poseWorldLandmarks;
+        const left_shoulder = pL[POSE_LANDMARKS.LEFT_SHOULDER];
+
+        return left_shoulder.x*100;
+      }
+
+      function LshoulderY(results){
+        const pL = results.poseWorldLandmarks;
+        const left_shoulder = pL[POSE_LANDMARKS.LEFT_SHOULDER];
+
+        return left_shoulder.y*100;
+      }
+
+      function LshoulderZ(results){
+        const pL = results.poseWorldLandmarks;
+        const left_shoulder = pL[POSE_LANDMARKS.LEFT_SHOULDER];
+
+        return left_shoulder.z*100;
+      }
 
 
     var intervalID;
@@ -602,6 +905,22 @@ function allStop(freq){
             mode = 1;
           }
         }
+
+        logData(0, {
+            ステップ:step,
+            右腰角度:RhipAngle(results),
+            左腰角度:LhipAngle(results),
+            右腕角度:RarmAngle(results),
+            左腕角度:LarmAngle(results),
+            右手首y:rightWristY(results),
+            左手首y:leftWristY(results),
+            rightH:rightH(results),
+            leftH:leftH(results),
+            右腰z:RhipZ(results),
+            左腰z:LhipZ(results),
+            右肩z:RshoulderZ(results),
+            左肩z:LshoulderZ(results),
+          })
     }
 
     
@@ -647,6 +966,24 @@ function allStop(freq){
           step = 2;
         }
       }
+
+      logData(1, {
+            ステップ:step,
+            右腰x:RhipX(results),
+            左腰x:LhipX(results),
+            右膝x:RkneeX(results),
+            左膝x:LkneeX(results),
+            右腰角度:RhipAngle(results),
+            左腰角度:LhipAngle(results),
+            右手首y:rightWristY(results),
+            左手首y:leftWristY(results),
+            rightH:rightH(results),
+            leftH:leftH(results),
+            右腰z:RhipZ(results),
+            左腰z:LhipZ(results),
+            右肩z:RshoulderZ(results),
+            左肩z:LshoulderZ(results),
+          })
     }
 
 

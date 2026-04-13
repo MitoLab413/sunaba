@@ -171,6 +171,7 @@
       otsukare2:new Audio('SE/otsukare2.mp3'),
       ongen:new Audio('SE/ongen.mp3'),
     };
+    SE.OK.volume = 0.7;
 
     //カウント
     //const NowTime = 0;
@@ -1055,7 +1056,7 @@
       var is_bent = (calcAngle(right_knee,right_hip,right_shoulder).angle<=110) && (calcAngle(left_knee,left_hip,left_shoulder).angle<=110);
       var is_front = (right_wrist.y > right_knee.y) && (left_wrist.y > left_knee.y);
       var is_body_front = is_bent && is_front
-      var is_right = (right_wrist.x<0 && left_wrist.x<0); //手が両方とも腰よりも右にあるか
+      var is_right = (right_wrist.x < right_knee.x); //手が両方とも腰よりも右にあるか
 
       return is_body_front && is_right;
     }
@@ -1076,7 +1077,7 @@
       var is_bent = (calcAngle(right_knee,right_hip,right_shoulder).angle<=110) && (calcAngle(left_knee,left_hip,left_shoulder).angle<=110);
       var is_front = (right_wrist.y > right_knee.y) && (left_wrist.y > left_knee.y);
       var is_body_front = is_bent && is_front
-      var is_left = (right_wrist.x>0 && left_wrist.x>0); //手が両方とも腰よりも左にあるか
+      var is_left = (right_wrist.x > left_knee.x); //手が両方とも腰よりも左にあるか
 
       return is_body_front && is_left;
     }
@@ -2067,6 +2068,10 @@ var Cangle = cameraAngle(results);
           左手首y:leftWristY(results),
           右肩x:RshoulderX(results),
           左肩x:LshoulderY(results),
+          右肩y:RshoulderY(results),
+          左肩y:LshoulderY(results),
+          右肘y:RelbowY(results),
+          左肘y:LelbowY(results),
           判定:flag_arm,
         })
       }
@@ -2215,12 +2220,22 @@ var Cangle = cameraAngle(results);
         logData(9, {
           右腰角度:RhipAngle(results),
           左腰角度:LhipAngle(results),
+          右肩角度:RshoulderAngle(results),
+          左肩角度:LshoulderAngle(results),
           右手首x:rightWristX(results),
           左手首x:leftWristX(results),
           右手首y:rightWristY(results),
           左手首y:leftWristY(results),
+          右膝x:RkneeX(results),
+          左膝x:LkneeX(results),
           右膝y:RkneeY(results),
           左膝y:LkneeY(results),
+          右肩x:RshoulderX(results),
+          左肩x:LshoulderX(results),
+          //右肘x:RelbowX(results),
+          //左肘x:LelbowX(results),
+          右腰x:RhipX(results),
+          左腰x:LhipX(results),
           判定:flag_chest,
         })
       }
