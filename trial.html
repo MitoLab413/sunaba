@@ -1,0 +1,550 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <script src="https://cdn.jsdelivr.net/npm/@mediapipe/camera_utils/camera_utils.js" crossorigin="anonymous"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@mediapipe/control_utils/control_utils.js" crossorigin="anonymous"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@mediapipe/control_utils_3d/control_utils_3d.js" crossorigin="anonymous"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@mediapipe/drawing_utils/drawing_utils.js" crossorigin="anonymous"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@mediapipe/pose/pose.js" crossorigin="anonymous"></script>
+</head>
+
+<body>
+  <div id="myModal" class="modal">
+  </div>
+  <div class="container">
+    <video hidden class="input_video"></video><!--入力映像-->
+    <canvas class="output_canvas" width="1280px" height="720px"></canvas> <!--描画するキャンパス-->
+    <!--<div class="landmark-grid-container"></div>-->
+
+    <div id="angle"></div><!--体の角度とかの出力先-->
+    <aside class = "side" id="count" font size = "5"></aside>
+    <audio id="testAudio" src="./SE/attention.mp3"></audio>
+    <div class = "tap">
+      <button type = "button" class ="button1" id = "button1" font size = "0.5">Result</button>
+      <button type = "button" class ="button2" id = "button2" font size = "0.5">Reset</button>
+    </div>
+  </div>
+</body>
+<style>
+  .modal {
+    display: none;
+    position: fixed;
+    z-index: 1;
+    left: 0;
+    top: 0;
+    width: 100%;
+    height: 100%;
+    background-color: rgba(0, 0, 0, 0.5);
+  }
+  .modal-content {
+    background-color: #fefefe;
+    margin: 15% auto;
+    padding: 20px;
+    border: 1px solid #888;
+    width: 80%;
+    text-align: center;
+    }
+  .container{
+    display: flex;
+    max-width: 1200px;
+    margin: 0 auto;
+  }
+  .input_video{
+    width: 72%;
+    height:510px;
+  }
+  .output_canvas{
+    width: 72%;
+    height:510px;
+  }
+  .side{
+  width: 30%;
+  line-height: 0.7;
+  }
+  .tap{
+    width:5%;
+  }
+  .button1{
+    height:50px;
+  }
+  .button2{
+    height:50px;
+  }
+</style>
+</html>
+
+<script type="module">
+
+    function showModal() {
+        //var modal = document.getElementById("myModal");
+        //modal.style.display = "block";
+    }
+
+    /*// ボタンにクリックイベントを追加
+    document.getElementById("allowButton").addEventListener("click", function() {
+        allowMusic();
+        // モーダルを非表示にする
+        document.getElementById("myModal").style.display = "none";
+        localStorage.setItem("audioPermission", "allowed");
+    });*/
+    
+
+    const videoElement = document.getElementsByClassName('input_video')[0];
+    const canvasElement = document.getElementsByClassName('output_canvas')[0];
+    const canvasCtx = canvasElement.getContext('2d');
+    const landmarkContainer = document.getElementsByClassName('landmark-grid-container')[0];
+    //const grid = new LandmarkGrid(landmarkContainer);
+    const angleElement = document.getElementById("angle");
+    const countElement = document.getElementById("count");
+    const button1Element = document.getElementById("button1");
+    const button2Element = document.getElementById("button2");
+    //const sideElement = document.getElementById("side");
+    //const crossElement = document.getElementById("cross");
+
+
+    //ランドマークから特定のポイントを抜き取る関数
+    function getPoints(results, side, names) {
+      const map = LANDMARK_INDEX[side]
+  
+      return names.map(name => results.poseLandmarks[map[name]])
+    }
+
+
+    //pose1とpose2からベクトルを作る関数
+    function makeVector(pose1,pose2){//始点,終点
+      const vector1 = {
+          x:Math.round((pose2.x-pose1.x)*1000000)/1000000,
+          y:Math.round((pose2.y-pose1.y)*1000000)/1000000,
+          z:Math.round((pose2.z-pose1.z)*1000000)/1000000,
+          visibility:Math.min(pose1.visibility,pose2.visibility),
+      }
+      return vector1;
+    }
+
+    //キーポイントを引数とした角度の計算
+    function calcAngle(pose1,pose2,pose3){
+        // please learn here -> https://npm.runkit.com/%40mediapipe%2Fpose
+
+        const vector1 = {
+            x:Math.round((pose1.x-pose2.x)*1000000)/1000000,
+            y:Math.round((pose1.y-pose2.y)*1000000)/1000000,
+            z:Math.round((pose1.z-pose2.z)*1000000)/1000000,
+            visibility:Math.min(pose1.visibility,pose2.visibility),
+        }
+        const vector2 = {
+            x:Math.round((pose3.x-pose2.x)*1000000)/1000000,
+            y:Math.round((pose3.y-pose2.y)*1000000)/1000000,
+            z:Math.round((pose3.z-pose2.z)*1000000)/1000000,
+            visibility:Math.min(pose3.visibility,pose2.visibility),
+        }
+
+        //console.log("arrived vector",vector1,vector2)
+        return {
+            angle: Math.acos((vector1.x * vector2.x + vector1.y * vector2.y + vector1.z * vector2.z) / ( Math.sqrt(vector1.x**2 + vector1.y**2 + vector1.z**2) * Math.sqrt(vector2.x**2 + vector2.y**2 + vector2.z**2))) * 180 / Math.PI,
+            visibility: Math.min(vector1.visibility, vector2.visibility),
+            "vector1":vector1,
+            "vector2":vector2,
+        };
+    }
+
+    //ベクトルを引数とした角度の計算
+    function calcVectorAngle(vector1,vector2){
+      return {
+          angle: Math.acos((vector1.x * vector2.x + vector1.y * vector2.y + vector1.z * vector2.z) / ( Math.sqrt(vector1.x**2 + vector1.y**2 + vector1.z**2) * Math.sqrt(vector2.x**2 + vector2.y**2 + vector2.z**2))) * 180 / Math.PI,
+          visibility: Math.min(vector1.visibility, vector2.visibility),
+          "vector1":vector1,
+          "vector2":vector2,
+      };
+    }
+
+    //ランドマークのインデックス
+    const LANDMARK_INDEX = {
+      left: {
+      hip: 23,
+      shoulder: 11,
+      elbow: 13,
+      wrist: 15
+      },
+      right: {
+      hip: 24,
+      shoulder: 12,
+      elbow: 14,
+      wrist: 16
+      }
+    }
+
+    const JOINT_CONFIG = {
+      elbow: {
+        min: 30,
+        max: 180
+      },
+      shoulder: {
+        min: 20,
+        max: 180
+      }
+    }
+
+    
+
+    //ランドマークから腰、肩、肘の角度を計算する関数
+    //右
+    function getRShoulderAngle(results, side = 'right') {
+      const [hip, shoulder, elbow] = getPoints(results, side, ['hip', 'shoulder', 'elbow'])
+      return calcAngle(hip, shoulder, elbow)
+    }
+
+    //左
+    function getLShoulderAngle(results, side = 'left') {
+      const [hip, shoulder, elbow] = getPoints(results, side, ['hip', 'shoulder', 'elbow'])
+      return calcAngle(hip, shoulder, elbow)
+    }
+
+    //ランドマークから肩、肘、手首の角度を計算する関数
+    //右
+    function getRElbowAngle(results, side = 'right') {
+      const [shoulder, elbow, wrist] = getPoints(results, side, ['shoulder', 'elbow', 'wrist'])
+      return calcAngle(shoulder, elbow, wrist)
+    }
+
+    //左
+    function getLElbowAngle(results, side = 'left') {
+      const [shoulder, elbow, wrist] = getPoints(results, side, ['shoulder', 'elbow', 'wrist'])
+      return calcAngle(shoulder, elbow, wrist)
+    }
+
+    //ランドマークから手首のy座標を抜き取る関数
+    //右
+    function getRWrist(results, side = 'right') {
+      const wrist = getPoints(results, side, ['wrist'])[0]
+
+      return{
+        X:wrist.x,
+        Y:wrist.y,
+        Z:wrist.z,
+        visibility: wrist.visibility
+      }
+    }
+
+    //左
+    function getLWrist(results, side = 'left') {
+      const wrist = getPoints(results, side, ['wrist'])[0]
+
+      return {
+        X:wrist.x,  
+        Y:wrist.y,
+        Z:wrist.z,
+        visibility: wrist.visibility
+      }
+    }
+
+    // 手首のy座標を周波数にマッピングする関数
+    function mapWristToFrequency(wristY) {
+      if (!isFinite(wristY)) return 300; // デフォルト値
+      const minFreq = 200
+      const maxFreq = 500
+
+  // 安全にクランプ
+      const y = Math.max(0, Math.min(1, wristY))
+
+  // 上に行くほど高音
+      const inverted = 1 - y
+
+      return minFreq + (maxFreq - minFreq) * inverted
+    }
+
+    // 角度を周波数にマッピングする関数
+    /*function mapAngleToFrequency(angle, targetAngle, minAngle, maxAngle) {
+      if (!isFinite(angle)) return 300
+
+      const minFreq = 300
+      const maxFreq = 500
+
+      // 可動域でクランプ
+      const clamped = Math.max(minAngle, Math.min(maxAngle, angle))
+
+      // 誤差
+      const error = Math.abs(clamped - targetAngle)
+
+      // 最大誤差（どこまでズレたらMAX扱いか）
+      const maxError = Math.max(
+        Math.abs(minAngle - targetAngle),
+        Math.abs(maxAngle - targetAngle)
+      )
+
+      const normalized = Math.min(error / maxError, 1)
+
+      return minFreq + (maxFreq - minFreq) * normalized
+    }*/
+
+
+    /*function mapAngleToFrequency(angle, targetAngle, minAngle, maxAngle) {
+      if (!isFinite(angle)) return 523.251 // C4
+
+      const baseFreq = 523.251 // C4
+      const minFreq = 200
+      const maxFreq = 1000
+
+      const DEAD_ZONE = 5 // ±5°
+
+      // クランプ
+      const clamped = Math.max(minAngle, Math.min(maxAngle, angle))
+
+      const error = Math.abs(clamped - targetAngle)
+
+      // =========================
+      // ① デッドゾーン内 → 固定音
+      // =========================
+      if (error <= DEAD_ZONE) {
+        return baseFreq
+      }
+
+      // =========================
+      // ② デッドゾーン外 → 滑らか変化
+      // =========================
+
+      const maxError = Math.max(
+        Math.abs(minAngle - targetAngle),
+        Math.abs(maxAngle - targetAngle)
+      )
+
+      // デッドゾーンを除いた誤差
+      const adjustedError = error - DEAD_ZONE
+      const adjustedMax = maxError - DEAD_ZONE
+
+      let normalized = Math.min(adjustedError / adjustedMax, 1)
+
+      // ★スムーズ化（イージング）
+      normalized = normalized * normalized  // ease-in
+
+      return baseFreq + (maxFreq - baseFreq) * normalized
+    }*/
+
+    function mapAngleToFrequency(angle, targetAngle, minAngle, maxAngle) {
+      if (!isFinite(angle)) return 523.251 // C5
+
+      const baseFreq = 523.251 // C5
+      const maxOffset = 200   // 上下の変化幅
+      const DEAD_ZONE = 5
+
+      const clamped = Math.max(minAngle, Math.min(maxAngle, angle))
+      const error = clamped - targetAngle // 符号付き
+
+      // デッドゾーン
+      if (Math.abs(error) <= DEAD_ZONE) {
+        //return baseFreq
+        return baseFreq + Math.sin(Date.now() * 0.005) * 3 // デッドゾーン内は微妙に揺らす
+      }
+
+      let normalized
+
+      if (error > 0) {
+        // 上方向
+        const maxError = maxAngle - targetAngle
+        normalized = (error - DEAD_ZONE) / (maxError - DEAD_ZONE)
+      } else {
+        // 下方向
+        const maxError = targetAngle - minAngle
+        normalized = (-error - DEAD_ZONE) / (maxError - DEAD_ZONE)
+      }
+
+      normalized = Math.min(Math.max(normalized, 0), 1)
+
+      // イージング（滑らかに）
+      normalized = normalized * normalized
+
+      // 上下で周波数を分ける
+      if (error > 0) {
+        return baseFreq + maxOffset * normalized  // 上→高音
+      } else {
+        return baseFreq - maxOffset * normalized  // 下→低音
+      }
+    }
+
+    // 関節の角度を周波数にマッピングする関数
+    function mapJointAngleToFrequency(angle, target, config) {
+      return mapAngleToFrequency(
+        angle,
+        target,
+        config.min,
+        config.max
+      )
+    }
+
+    // 手首のx座標とy座標を周波数にマッピングする関数
+    function map2DToFrequency(x, y) {
+      const baseFreq = mapWristToFrequency(y)
+
+      // xで±変化させる
+      const offset = (x - 0.5) * 200  // -100〜+100Hz
+
+      return baseFreq + offset
+    }
+
+    const audioContext = new (window.AudioContext || window.webkitAudioContext)()
+
+    // 指定した周波数で音を鳴らす関数
+    function playTone(freq) {
+      const oscillator = audioContext.createOscillator()
+      oscillator.frequency.setValueAtTime(freq, audioContext.currentTime)
+      oscillator.type = 'sine'
+
+      const gainNode = audioContext.createGain()
+      gainNode.gain.setValueAtTime(1.2, audioContext.currentTime)
+      //gainNode.gain.exponentialRampToValueAtTime(0.001, audioContext.currentTime + 1.5)
+      oscillator.connect(gainNode)
+      gainNode.connect(audioContext.destination)
+      oscillator.start()
+      //oscillator.stop(audioContext.currentTime + 1.5)
+      window.oscillator = oscillator;
+      window.gainNode = gainNode;
+    }
+
+    //周波数を受け取って音を鳴らす関数
+    function updateTone(freq) {
+      if (window.oscillator) {
+        window.oscillator.frequency.setValueAtTime(
+        freq,
+        audioContext.currentTime
+      )
+      } else {
+        playTone(freq)
+      }
+    }
+
+    function playRichTone(freq) {
+      const osc1 = audioContext.createOscillator()
+      const osc2 = audioContext.createOscillator()
+
+      osc1.frequency.setValueAtTime(freq, audioContext.currentTime)
+      osc2.frequency.setValueAtTime(freq * 1.5, audioContext.currentTime) // 完全5度
+
+      osc1.type = 'sine'
+      osc2.type = 'sine'
+
+      const gain = audioContext.createGain()
+      gain.gain.setValueAtTime(0.8, audioContext.currentTime)
+
+      osc1.connect(gain)
+      osc2.connect(gain)
+      gain.connect(audioContext.destination)
+
+      osc1.start()
+      osc2.start()
+
+      window.osc1 = osc1
+      window.osc2 = osc2
+    }
+
+    function allStop(freq){
+      if(window.oscillator){
+      window.oscillator.stop();
+      window.oscillator = null;
+      window.gainNode = null;
+    }
+}
+
+
+    
+
+    //毎フレーム描画する関数
+    function onResults(results) {
+      if (!results.poseLandmarks) {
+        //grid.updateLandmarks([]);
+        return;
+      }
+
+      canvasCtx.save();
+      canvasCtx.clearRect(0, 0, canvasElement.width, canvasElement.height);
+      /*canvasCtx.drawImage(results.segmentationMask, 0, 0,
+                          canvasElement.width, canvasElement.height);*/
+
+      // Only overwrite existing pixels.
+      canvasCtx.globalCompositeOperation = 'source-in';
+      canvasCtx.fillStyle = '#00FF00';
+      canvasCtx.fillRect(0, 0, canvasElement.width, canvasElement.height);
+
+      // Only overwrite missing pixels.
+      canvasCtx.globalCompositeOperation = 'destination-atop';
+      canvasCtx.drawImage(
+          results.image, 0, 0, canvasElement.width, canvasElement.height);
+
+      canvasCtx.globalCompositeOperation = 'source-over';
+      drawConnectors(canvasCtx, results.poseLandmarks, POSE_CONNECTIONS,
+                     {color: '#00FF00', lineWidth: 4});
+      drawLandmarks(canvasCtx, results.poseLandmarks,
+                   {color: '#FF0000', lineWidth: 2});
+      canvasCtx.restore();
+
+
+      
+      const angle1 = getRShoulderAngle(results, 'right')
+      const angle2 = getRElbowAngle(results, 'right')
+      const RData = getRWrist(results, 'right')
+
+      // visibilityチェック（重要）
+      if (angle1.visibility < 0.5 || angle2.visibility < 0.5 || RData.visibility < 0.5) {
+        allStop()
+        return
+      }
+
+  // =====================
+  // 音フィードバック
+  // =====================
+      //const freq = mapWristToFrequency(RData.Y)
+      const freq = mapJointAngleToFrequency(
+        angle1.angle,
+        150,
+        JOINT_CONFIG.shoulder
+      )
+      updateTone(freq)
+
+  // =====================
+  // デバッグ
+  // =====================
+      console.log({
+        hipShoulderElbow: angle1.angle,
+        shoulderElbowWrist: angle2.angle,
+        //elbowY: RData.elbowY,
+        wristX: RData.X,
+        wristY: RData.Y,
+        freq,
+      })
+      
+    }
+
+    
+    const pose = new Pose({locateFile: (file) => {
+      return `https://cdn.jsdelivr.net/npm/@mediapipe/pose/${file}`;
+    }});
+    pose.setOptions({
+      modelComplexity: 0,
+      smoothLandmarks: false,
+      enableSegmentation: false,
+      //smoothSegmentation: false,
+      minDetectionConfidence: 0.5,
+      minTrackingConfidence: 0.5
+    });
+
+    pose.onResults(onResults);
+
+    window.onload = function() {
+        showModal();
+    };
+
+    let lastProcessedTime = 0;
+    const interval = 50;
+
+    const camera = new Camera(videoElement, {
+      onFrame: async () => {
+        const now = Date.now();
+        if(now - lastProcessedTime > interval){
+          lastProcessedTime = now;
+        await pose.send({image: videoElement});
+        }
+      },
+      width: 1280,
+      height: 720
+    });
+    camera.start();
+</script>
