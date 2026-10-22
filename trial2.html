@@ -268,6 +268,13 @@
   const imageInput2 = document.getElementById("imageInput2");
   const imageInput3 = document.getElementById("imageInput3");
 
+
+  // =========================================
+  // 音声
+  // =========================================
+  const OK = new Audio('SE/OKsound.mp3');
+
+
   // =========================================
   // 保存用
   // =========================================
@@ -1117,8 +1124,13 @@
       const holdTime = Date.now() - holdStartTime;// ホールド時間
 
       if(holdTime >= HOLD_TIME){
-        step++;
+        step = step + 0.5;// 次の姿勢へ（0.5刻みで管理）
         holdStartTime = null;
+        OK.play();
+        OK.onended = () => {
+          OK.currentTime = 0;
+          step = step + 0.5;
+        }
 
       if(step > 3){
       alert("全姿勢完了！");
@@ -1133,7 +1145,7 @@
   // 音フィードバック
   // =====================
     //const freq = mapWristToFrequency(RData.Y)
-  if(step <= 3){
+  if(step == 3 || step == 2 || step == 1){
     const freq = mapJointAngleToFrequency(
         currentAngle,
         targetAngle,
@@ -1143,7 +1155,7 @@
   }else{
      allStop();
   }
-  
+
 
 
     // --------------------------

@@ -1,0 +1,1288 @@
+<!DOCTYPE html>
+<html lang="ja">
+
+<head>
+  <meta charset="utf-8">
+
+  <!-- MediaPipe -->
+  <script src="https://cdn.jsdelivr.net/npm/@mediapipe/camera_utils/camera_utils.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@mediapipe/control_utils/control_utils.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@mediapipe/drawing_utils/drawing_utils.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@mediapipe/pose/pose.js"></script>
+
+  <title>姿勢角度抽出テスト</title>
+</head>
+
+<body>
+
+  <div class="container">
+
+    <!-- 左側 -->
+    <div class="main">
+
+      <!-- <h2>正解画像アップロード</h2>
+
+      <input type="file" id="imageInput" accept="image/*">
+
+      <div class="jointSelect">
+        <label>
+          <input type="radio" name="joint" value="shoulder" checked>
+          肩関節
+        </label>
+
+        <label style="margin-left:20px;">
+          <input type="radio" name="joint" value="elbow">
+          肘関節
+        </label>
+      </div>
+
+      <br>-->
+
+      <div class="poseBlock">
+
+        <h3>姿勢1</h3>
+
+        <input
+          type="file"
+          id="imageInput1"
+          accept="image/*"
+        >
+
+        <br><br>
+
+        <!-- 姿勢1専用 -->
+        <label>
+
+          <input
+            type="radio"
+            name="joint1"
+            value="shoulder"
+            checked
+          >
+
+          肩関節
+
+        </label>
+
+        <label>
+
+          <input
+            type="radio"
+            name="joint1"
+            value="elbow"
+          >
+
+          肘関節
+
+        </label>
+      </div>
+
+
+      <div class="poseBlock">
+        <h3>姿勢2</h3>
+
+        <input
+          type="file"
+          id="imageInput2"
+          accept="image/*"
+        >
+
+        <br><br>
+
+        <!-- 姿勢2専用 -->
+        <label>
+
+          <input
+            type="radio"
+            name="joint2"
+            value="shoulder"
+            checked
+          >
+
+          肩関節
+
+        </label>
+
+        <label>
+
+          <input
+            type="radio"
+            name="joint2"
+            value="elbow"
+          >
+
+          肘関節
+
+        </label>
+      </div>
+
+      <div class="poseBlock">
+        <h3>姿勢3</h3>
+
+        <input
+          type="file"
+          id="imageInput3"
+          accept="image/*"
+        >
+
+        <br><br>
+
+        <!-- 姿勢3専用 -->
+        <label>
+
+          <input
+            type="radio"
+            name="joint3"
+            value="shoulder"
+            checked
+          >
+
+          肩関節
+
+        </label>
+
+        <label>
+
+          <input
+            type="radio"
+            name="joint3"
+            value="elbow"
+          >
+
+          肘関節
+
+        </label>
+      </div>
+
+      <button id="analyzeBtn">画像解析開始</button>
+
+      <br><br>
+
+      <!-- カメラ -->
+      <video hidden class="input_video"></video>
+
+      <!-- 描画キャンバス -->
+      <canvas class="output_canvas" width="1280" height="720"></canvas>
+
+    </div>
+
+    <!-- 右側 -->
+    <aside class="side">
+      <br>
+
+      <h2>抽出結果</h2>
+
+      <div id="poseNumber">姿勢番号: - </div>
+      <div id="jointName">選択関節: -</div>
+      <div id="teacherAngle">目標角度: -</div>
+
+      <br>
+
+      <div id="currentAngle">現在角度: -</div>
+
+      <br>
+
+      <div id="difference">角度差: -</div>
+
+    </aside>
+
+  </div>
+
+</body>
+
+<style>
+
+  body{
+    margin:0;
+    font-family:sans-serif;
+    background:#f5f5f5;
+  }
+
+  .container{
+    display:flex;
+    width:100%;
+  }
+
+  .main{
+    display:flex;
+    gap:20px;
+    flex-wrap:wrap;
+    align-items:flex-start;
+  }
+
+  .poseBlock{
+    padding:15px;
+    width:250px;
+  }
+
+  .side{
+    width:25%;
+    background:white;
+    padding:20px;
+    border-left:2px solid #ccc;
+    font-size:22px;
+    line-height:2;
+  }
+
+  .output_canvas{
+    width:100%;
+    max-width:1000px;
+    border:2px solid black;
+    background:black;
+  }
+
+  .jointSelect{
+    margin-top:15px;
+  }
+
+  button{
+    padding:10px 20px;
+    font-size:18px;
+  }
+
+</style>
+
+<script>
+//　提示音だけで方向まで判別したいやつ
+  // =========================================
+  // HTML要素
+  // =========================================
+
+  const videoElement = document.querySelector('.input_video');
+  const canvasElement = document.querySelector('.output_canvas');
+  const canvasCtx = canvasElement.getContext('2d');
+
+  const analyzeBtn = document.getElementById("analyzeBtn");
+
+  const poseNumberDiv = document.getElementById("poseNumber");
+  const jointNameDiv = document.getElementById("jointName");
+  const teacherAngleDiv = document.getElementById("teacherAngle");
+  const currentAngleDiv = document.getElementById("currentAngle");
+  const differenceDiv = document.getElementById("difference");
+
+  // =========================================
+  // 各画像入力取得
+  // =========================================
+
+  const imageInput1 = document.getElementById("imageInput1");
+  const imageInput2 = document.getElementById("imageInput2");
+  const imageInput3 = document.getElementById("imageInput3");
+
+
+  // =========================================
+  // 音声
+  // =========================================
+  const OK = new Audio('SE/OKsound.mp3');
+
+
+  // =========================================
+  // 保存用
+  // =========================================
+
+  const uploadedImages = [
+    null,
+    null,
+    null
+  ];
+  const teacherAngles = [];
+  const selectedJoints = [];
+
+  // =========================================
+  // 処理に必要なもろもろ
+  // =========================================
+
+  let step = 0;// 現在の姿勢番号
+  let holdStartTime = null;// ホールド開始時間
+  const HOLD_TIME = 2000;// ホールド成功とみなす時間（ミリ秒）
+  const ANGLE_THRESHOLD = 15;// 目標角度との許容差（度）
+  // =========================================
+  // ランドマーク
+  // =========================================
+
+  const LANDMARK_INDEX = {
+    left: {
+      hip: 23,
+      shoulder: 11,
+      elbow: 13,
+      wrist: 15
+    },
+    right: {
+      hip: 24,
+      shoulder: 12,
+      elbow: 14,
+      wrist: 16
+    }
+  };
+
+  const JOINT_CONFIG = {
+    elbow: {
+      min: 30,
+      max: 180
+    },
+    shoulder: {
+      min: 20,
+      max: 180
+     }
+  }
+
+  // =========================================
+  // getPoints
+  // =========================================
+
+  function getPoints(results, side, names) {
+
+    const map = LANDMARK_INDEX[side];
+
+    return names.map(name =>
+      results.poseLandmarks[map[name]]
+    );
+  }
+
+  // =========================================
+  // makeVector
+  // =========================================
+
+  function makeVector(pose1, pose2){
+
+    return {
+      x: pose2.x - pose1.x,
+      y: pose2.y - pose1.y,
+      z: pose2.z - pose1.z,
+      visibility: Math.min(
+        pose1.visibility,
+        pose2.visibility
+      )
+    };
+  }
+
+  // =========================================
+  // calcAngle
+  // =========================================
+
+  /*function calcAngle(pose1, pose2, pose3){
+
+    const vector1 = {
+      x: pose1.x - pose2.x,
+      y: pose1.y - pose2.y,
+      z: pose1.z - pose2.z
+    };
+
+    const vector2 = {
+      x: pose3.x - pose2.x,
+      y: pose3.y - pose2.y,
+      z: pose3.z - pose2.z
+    };
+
+    const dot =
+      vector1.x * vector2.x +
+      vector1.y * vector2.y +
+      vector1.z * vector2.z;
+
+    const mag1 = Math.sqrt(
+      vector1.x**2 +
+      vector1.y**2 +
+      vector1.z**2
+    );
+
+    const mag2 = Math.sqrt(
+      vector2.x**2 +
+      vector2.y**2 +
+      vector2.z**2
+    );
+
+    return {
+      angle:
+        Math.acos(dot / (mag1 * mag2))
+        * 180 / Math.PI
+    };
+  }*/
+
+  // =========================================
+// キーポイントを引数とした角度計算
+// visibilityが低い場合はnullを返す
+// =========================================
+
+  function calcAngle(pose1, pose2, pose3){
+
+    // -------------------------------------
+    // visibilityチェック
+    // どれか1つでも0.5未満なら失敗
+    // -------------------------------------
+
+      if(
+          pose1.visibility < 0.5 ||
+          pose2.visibility < 0.5 ||
+          pose3.visibility < 0.5
+      ){
+
+        return null;
+      }
+
+    // -------------------------------------
+    // ベクトル1
+    // pose2 -> pose1
+    // -------------------------------------
+
+      const vector1 = {
+
+          x: Math.round((pose1.x - pose2.x) * 1000000) / 1000000,
+          y: Math.round((pose1.y - pose2.y) * 1000000) / 1000000,
+          z: Math.round((pose1.z - pose2.z) * 1000000) / 1000000,
+
+          visibility: Math.min(
+            pose1.visibility,
+            pose2.visibility
+          )
+      };
+
+    // -------------------------------------
+    // ベクトル2
+    // pose2 -> pose3
+    // -------------------------------------
+
+      const vector2 = {
+
+          x: Math.round((pose3.x - pose2.x) * 1000000) / 1000000,
+          y: Math.round((pose3.y - pose2.y) * 1000000) / 1000000,
+          z: Math.round((pose3.z - pose2.z) * 1000000) / 1000000,
+
+          visibility: Math.min(
+            pose3.visibility,
+            pose2.visibility
+          )
+      };
+
+    // -------------------------------------
+    // 内積
+    // -------------------------------------
+
+      const dot =
+          vector1.x * vector2.x +
+          vector1.y * vector2.y +
+          vector1.z * vector2.z;
+
+    // -------------------------------------
+    // ベクトル長さ
+    // -------------------------------------
+
+      const mag1 = Math.sqrt(
+        vector1.x**2 +
+        vector1.y**2 +
+        vector1.z**2
+      );
+
+      const mag2 = Math.sqrt(
+        vector2.x**2 +
+        vector2.y**2 +
+        vector2.z**2
+      );
+
+    // -------------------------------------
+    // ゼロ除算防止
+    // -------------------------------------
+
+      if(mag1 === 0 || mag2 === 0){
+
+        return null;
+      }
+
+    // -------------------------------------
+    // cosθ
+    // -------------------------------------
+
+      let cosTheta = dot / (mag1 * mag2);
+
+    // 浮動小数点誤差対策
+      //cosTheta = Math.max(-1, Math.min(1, cosTheta));
+
+    // -------------------------------------
+    // 角度計算
+    // -------------------------------------
+
+      return {
+
+        angle:
+            Math.acos(cosTheta)* 180 / Math.PI,
+
+        visibility: Math.min(
+            vector1.visibility,
+            vector2.visibility
+        ),
+
+        vector1: vector1,
+        vector2: vector2
+
+      };
+  }
+
+  // =========================================
+  // 角度を周波数にマッピングする関数
+  // デッドゾーンを設け、目標角度からの誤差が小さい場合は基本周波数を返す
+  function mapAngleToFrequency(angle, targetAngle, minAngle, maxAngle) {
+      if (!isFinite(angle)) return 523.251 // C5
+
+      const baseFreq = 523.251 // C5
+      const maxOffset = 200   // 上下の変化幅
+      const DEAD_ZONE = 5
+
+      const clamped = Math.max(minAngle, Math.min(maxAngle, angle))
+      const error = clamped - targetAngle // 符号付き
+
+      // デッドゾーン
+      if (Math.abs(error) <= DEAD_ZONE) {
+        //return baseFreq
+        return baseFreq + Math.sin(Date.now() * 0.005) * 3 // デッドゾーン内は微妙に揺らす
+      }
+
+      let normalized
+
+      if (error > 0) {
+        // 上方向
+        const maxError = maxAngle - targetAngle
+        normalized = (error - DEAD_ZONE) / (maxError - DEAD_ZONE)
+      } else {
+        // 下方向
+        const maxError = targetAngle - minAngle
+        normalized = (-error - DEAD_ZONE) / (maxError - DEAD_ZONE)
+      }
+
+      normalized = Math.min(Math.max(normalized, 0), 1)
+
+      // イージング（滑らかに）
+      normalized = normalized * normalized
+
+      // 上下で周波数を分ける
+      if (error > 0) {
+        return baseFreq + maxOffset * normalized  // 上→高音
+      } else {
+        return baseFreq - maxOffset * normalized  // 下→低音
+      }
+  }
+
+  // 関節の角度を周波数にマッピングする関数
+  function mapJointAngleToFrequency(angle, target, config) {
+    return mapAngleToFrequency(
+      angle,
+      target,
+      config.min,
+      config.max
+    )
+  }
+
+  // AudioContextの初期化
+  const audioContext = new (window.AudioContext || window.webkitAudioContext)()
+
+  // 指定した周波数で音を鳴らす関数
+  function playTone(frequency, startTime, duration, volume = 0.12) {
+    const oscillator = audioContext.createOscillator();
+    const gain = audioContext.createGain();
+
+    oscillator.type = "sine";
+    oscillator.frequency.setValueAtTime(
+      frequency,
+      startTime
+    );
+
+    // 音の立ち上がり・終了を滑らかにする
+    gain.gain.setValueAtTime(0.001, startTime);
+    gain.gain.linearRampToValueAtTime(
+      volume,
+      startTime + 0.02
+    );
+    gain.gain.setValueAtTime(
+      volume,
+      startTime + duration - 0.03
+    );
+    gain.gain.linearRampToValueAtTime(
+      0.001,
+      startTime + duration
+    );
+
+    oscillator.connect(gain);
+    gain.connect(audioContext.destination);
+
+    oscillator.start(startTime);
+    oscillator.stop(startTime + duration + 0.01);
+  }
+
+  // 腕が目標より低い：低い音 → 高い音
+  function playRaiseCue() {
+    const now = audioContext.currentTime;
+
+    playTone(220, now, 0.18);
+    playTone(440, now + 0.22, 0.18);
+  }
+
+  // 腕が目標より高い：高い音 → 低い音
+  function playLowerCue() {
+    const now = audioContext.currentTime;
+
+    playTone(440, now, 0.18);
+    playTone(220, now + 0.22, 0.18);
+  }
+
+  // 目標姿勢：連続した安定音
+  let targetOscillator = null;
+  let targetGain = null;
+
+  function startTargetSound() {
+    if (targetOscillator) return;
+
+    targetOscillator = audioContext.createOscillator();
+    targetGain = audioContext.createGain();
+
+    targetOscillator.type = "sine";
+    targetOscillator.frequency.value = 440;
+    targetGain.gain.value = 0.001;
+
+    targetOscillator.connect(targetGain);
+    targetGain.connect(audioContext.destination);
+
+    const now = audioContext.currentTime;
+    targetGain.gain.setTargetAtTime(0.12, now, 0.04);
+    targetOscillator.start(now);
+  }
+
+  function stopTargetSound() {
+    if (!targetOscillator) return;
+
+    const oscillator = targetOscillator;
+    const gain = targetGain;
+
+    gain.gain.setTargetAtTime(
+      0.001,
+      audioContext.currentTime,
+      0.04
+    );
+
+    oscillator.stop(audioContext.currentTime + 0.2);
+
+    targetOscillator = null;
+    targetGain = null;
+  }
+
+  //周波数を受け取って音を鳴らす関数
+  function updateTone(freq) {
+    if (window.oscillator) {
+      window.oscillator.frequency.setValueAtTime(
+      freq,
+      audioContext.currentTime
+    )
+    } else {
+      playTone(freq)
+    }
+  }
+  // 関節の角度を周波数にマッピングして音を鳴らす関数
+  function playRichTone(freq) {
+    const osc1 = audioContext.createOscillator()
+    const osc2 = audioContext.createOscillator()
+
+    osc1.frequency.setValueAtTime(freq, audioContext.currentTime)
+    osc2.frequency.setValueAtTime(freq * 1.5, audioContext.currentTime) // 完全5度
+
+    osc1.type = 'sine'
+    osc2.type = 'sine'
+
+    const gain = audioContext.createGain()
+    gain.gain.setValueAtTime(0.8, audioContext.currentTime)
+
+    osc1.connect(gain)
+    osc2.connect(gain)
+    gain.connect(audioContext.destination)
+
+    osc1.start()
+    osc2.start()
+
+    window.osc1 = osc1
+    window.osc2 = osc2
+  }
+  // 音を止める関数
+  function allStop(freq){
+    if(window.oscillator){
+      window.oscillator.stop();
+      window.oscillator = null;
+      window.gainNode = null;
+    }
+  }
+
+
+  // =========================================
+  // 画像読み込み
+  // =========================================
+
+
+  // =========================================
+// 画像入力設定関数
+// =========================================
+
+  function setupImageInput(inputElement, index){
+
+    inputElement.addEventListener(
+      "change",
+      (e) => {
+
+        // ファイル取得
+        const file = e.target.files[0];
+
+        if(!file) return;
+
+        // 画像生成
+        const img = new Image();
+
+        // 読み込み完了時
+        img.onload = () => {
+
+          // 配列へ保存
+          uploadedImages[index] = img;
+
+          console.log(
+            `姿勢${index + 1} 読み込み完了`
+          );
+
+        };
+
+        // URL化
+        img.src =
+          URL.createObjectURL(file);
+
+      }
+    );
+  }
+
+  // =========================================
+  // Pose
+  // =========================================
+
+  const pose = new Pose({
+    locateFile: (file) => {
+      return `https://cdn.jsdelivr.net/npm/@mediapipe/pose/${file}`;
+    }
+  });
+
+  pose.setOptions({
+    modelComplexity: 2,
+    smoothLandmarks: true,
+    enableSegmentation: false,
+    minDetectionConfidence: 0.6,
+    minTrackingConfidence: 0.6
+  });
+
+  // =========================================
+// 各inputへ設定
+// =========================================
+
+  setupImageInput(imageInput1, 0);
+  setupImageInput(imageInput2, 1);
+  setupImageInput(imageInput3, 2);
+
+  // =========================================
+  // 画像解析
+  // =========================================
+
+ /* async function analyzeTeacherImage(){
+
+    if(!uploadedImage){
+      alert("画像をアップロードしてください");
+      return;
+    }
+
+    selectedJoint =
+      document.querySelector(
+        'input[name="joint1"]:checked'
+      ).value;
+
+    // 一時解析用
+    pose.onResults((results) => {
+
+      if(!results.poseLandmarks){
+        alert("画像から姿勢を検出できません");
+        return;
+      }
+
+      const side = "left";
+
+      let angleResult;
+
+      // --------------------------
+      // 肩関節
+      // --------------------------
+
+      if(selectedJoint === "shoulder"){
+
+        const [elbow, shoulder, hip] =
+          getPoints(
+            results,
+            side,
+            ["elbow", "shoulder", "hip"]
+          );
+
+        angleResult =
+          calcAngle(
+            elbow,
+            shoulder,
+            hip
+          );
+      }
+
+      // --------------------------
+      // 肘関節
+      // --------------------------
+
+      else if(selectedJoint === "elbow"){
+
+        const [shoulder, elbow, wrist] =
+          getPoints(
+            results,
+            side,
+            ["shoulder", "elbow", "wrist"]
+          );
+
+        angleResult =
+          calcAngle(
+            shoulder,
+            elbow,
+            wrist
+          );
+      }
+
+      teacherAngle = angleResult.angle;
+
+      jointNameDiv.innerHTML =
+        `選択関節: ${selectedJoint}`;
+
+      teacherAngleDiv.innerHTML =
+        `画像角度: ${teacherAngle.toFixed(1)}°`;
+
+      startCameraTracking();
+    });
+
+    await pose.send({
+      image: uploadedImage
+    });
+  }*/
+
+  function analyzeSingleImage(img, selectedJoint){
+
+    return new Promise(async(resolve) => {
+
+    // =====================================
+    // Pose解析結果
+    // =====================================
+
+      pose.onResults((results) => {
+
+        // 骨格未検出
+        if(!results.poseLandmarks){
+          resolve(null);
+          return;
+        }
+
+        const side = "right";
+
+        let angleResult;
+
+      // =====================================
+      // 肩関節
+      // =====================================
+
+        if(selectedJoint === "shoulder"){
+          const [elbow, shoulder, hip] =
+            getPoints(
+              results,
+              side,
+              ["elbow", "shoulder", "hip"]
+            );
+
+          angleResult =
+            calcAngle(
+              elbow,
+              shoulder,
+              hip
+            );
+        }
+
+      // =====================================
+      // 肘関節
+      // =====================================
+
+        else if(selectedJoint === "elbow"){
+          const [shoulder, elbow, wrist] =
+            getPoints(
+              results,
+              side,
+              ["shoulder", "elbow", "wrist"]
+            );
+
+          angleResult =
+            calcAngle(
+              shoulder,
+              elbow,
+              wrist
+           );
+        }
+
+      // visibility失敗
+        if(angleResult === null){
+          resolve(null);
+          return;
+        }
+
+        // 角度返却
+        resolve(angleResult.angle);
+
+      });
+
+    // =====================================
+    // 画像送信
+    // =====================================
+
+      await pose.send({
+        image: img
+      });
+
+    });
+  }
+
+  async function analyzeTeacherImages(){
+
+  // =====================================
+  // 各姿勢の関節取得
+  // =====================================
+
+    for(let i = 0; i < 3; i++){
+      const joint =
+        document.querySelector(
+          `input[name="joint${i+1}"]:checked`
+        ).value;
+
+      selectedJoints[i] = joint;
+    }
+
+  // =====================================
+  // 各画像解析
+  // =====================================
+
+    for(let i = 0; i < 3; i++){
+      const img =
+        uploadedImages[i];
+
+      // 未アップロード
+      if(!img){
+        console.log(
+          `姿勢${i+1} 未設定`
+        );
+        continue;
+      }
+
+      // 関節
+      const joint = selectedJoints[i];
+
+    // =====================================
+    // 解析
+    // =====================================
+
+      const angle =
+        await analyzeSingleImage(
+          img,
+          joint
+        );
+
+      // 保存
+      teacherAngles[i] = angle;
+
+      console.log(
+        `姿勢${i+1}`
+      );
+
+      console.log(
+        `関節: ${joint}`
+      );
+
+      console.log(
+        `角度: ${angle}`
+      );
+    }
+
+    console.log(teacherAngles);
+
+  // =====================================
+  // カメラ開始
+  // =====================================
+
+    startCameraTracking();
+  }
+
+  analyzeBtn.addEventListener(
+    "click",
+    analyzeTeacherImages,
+    step = 1
+  );
+
+  // =========================================
+  // カメラ追跡開始
+  // =========================================
+
+  function startCameraTracking(){
+
+    pose.onResults(onResults);
+
+    const camera = new Camera(videoElement, {
+
+      onFrame: async () => {
+        await pose.send({
+          image: videoElement
+        });
+      },
+
+      width: 1280,
+      height: 720
+
+    });
+
+    camera.start();
+  }
+
+
+  // =========================================
+  // 毎フレーム描画
+  // =========================================
+
+  function onResults(results){
+
+    if(!results.poseLandmarks){
+      return;
+    }
+
+    // --------------------------
+    // 描画
+    // --------------------------
+
+    canvasCtx.save();
+
+    canvasCtx.clearRect(
+      0,
+      0,
+      canvasElement.width,
+      canvasElement.height
+    );
+
+    canvasCtx.drawImage(
+      results.image,
+      0,
+      0,
+      canvasElement.width,
+      canvasElement.height
+    );
+
+    drawConnectors(
+      canvasCtx,
+      results.poseLandmarks,
+      POSE_CONNECTIONS,
+      {
+        color:'#00FF00',
+        lineWidth:4
+      }
+    );
+
+    drawLandmarks(
+      canvasCtx,
+      results.poseLandmarks,
+      {
+        color:'#FF0000',
+        lineWidth:2
+      }
+    );
+
+    canvasCtx.restore();
+
+
+    if(step == 1){
+      poseNumberDiv.innerHTML =
+        `姿勢番号: 1`;
+      jointNameDiv.innerHTML =
+        `選択関節: ${selectedJoints[0]}`;
+      teacherAngleDiv.innerHTML =
+        `目標角度: ${teacherAngles[0].toFixed(1)}°`;
+    }
+
+    if(step == 2){
+      poseNumberDiv.innerHTML =
+        `姿勢番号: 2`;
+      jointNameDiv.innerHTML =
+        `選択関節: ${selectedJoints[1]}`;
+      teacherAngleDiv.innerHTML =
+        `目標角度: ${teacherAngles[1].toFixed(1)}°`;
+    }
+
+    if(step == 3){
+      poseNumberDiv.innerHTML =
+        `姿勢番号: 3`;
+      jointNameDiv.innerHTML =
+        `選択関節: ${selectedJoints[2]}`;
+      teacherAngleDiv.innerHTML =
+        `目標角度: ${teacherAngles[2].toFixed(1)}°`;
+    }
+    // --------------------------
+    // 現在角度計算
+    // --------------------------
+
+    const side = "right";
+
+    let currentAngle;
+
+    // 肩
+    if(selectedJoints[0] === "shoulder"){
+
+      const [elbow, shoulder, hip] =
+        getPoints(
+          results,
+          side,
+          ["elbow", "shoulder", "hip"]
+        );
+
+      currentAngle =
+        calcAngle(
+          elbow,
+          shoulder,
+          hip
+        );
+
+      if(currentAngle === null){
+        currentAngleDiv.innerHTML =
+        "現在角度: 検出失敗";
+        return;
+      }
+
+      currentAngle = currentAngle.angle;
+    }
+
+    // 肘
+    else if(selectedJoints[0] === "elbow"){
+
+      const [shoulder, elbow, wrist] =
+        getPoints(
+          results,
+          side,
+          ["shoulder", "elbow", "wrist"]
+        );
+
+      currentAngle =
+        calcAngle(
+          shoulder,
+          elbow,
+          wrist
+        );
+
+      if(currentAngle === null){
+        currentAngleDiv.innerHTML =
+          "現在角度: 検出失敗";
+        return;
+      }
+
+      currentAngle = currentAngle.angle;
+    }
+
+  // --------------------------
+    // 目標角度との比較
+    const targetAngle = teacherAngles[step - 1];
+
+    const diff = Math.abs(currentAngle - targetAngle);
+
+    if(diff <= ANGLE_THRESHOLD){
+      if(holdStartTime === null){
+      holdStartTime = Date.now();
+      }
+
+      const holdTime = Date.now() - holdStartTime;// ホールド時間
+
+      if(holdTime >= HOLD_TIME){
+        step = step + 0.5;// 次の姿勢へ（0.5刻みで管理）
+        holdStartTime = null;
+        OK.play();
+        OK.onended = () => {
+          OK.currentTime = 0;
+          step = step + 0.5;
+        }
+
+      if(step > 3){
+      alert("全姿勢完了！");
+      allStop();
+      }
+    }
+
+  }else{
+    holdStartTime = null;
+  }
+
+  // =====================
+  // 音フィードバック
+  // =====================
+    //const freq = mapWristToFrequency(RData.Y)
+  let cueTimer = null; 
+  if(step == 3 || step == 2 || step == 1){
+    if(diff > ANGLE_THRESHOLD){
+      stopTargetSound();
+      // まだタイマーが動いていない場合だけ開始
+      if (cueTimer === null) {
+      // 範囲外になったらすぐに1回鳴らす
+        if (currentAngle > targetAngle) {
+          playLowerCue();
+        } else {
+          playRaiseCue();
+        }
+        // 以降は1秒間隔で繰り返す
+        cueTimer = setInterval(() => {
+        if (currentAngle > targetAngle) {
+          playLowerCue();
+        }else if(currentAngle < targetAngle) {
+          playRaiseCue();
+        }
+      }, 1000);
+    }
+  
+    }else{
+      // 許容範囲に入ったら方向音を停止
+      if (cueTimer !== null) {
+        clearInterval(cueTimer);
+        cueTimer = null;
+     }
+      startTargetSound();
+    }
+  }
+
+
+
+    // --------------------------
+    // 表示
+    // --------------------------
+
+    currentAngleDiv.innerHTML =
+      `現在角度: ${currentAngle.toFixed(1)}°`;
+
+    //let diff = 0;
+    /*if(step == 1){
+      diff = Math.abs(currentAngle - teacherAngles[0]);
+    }
+    if(step == 2){
+      diff = Math.abs(currentAngle - teacherAngles[1]);
+    }
+    if(step == 3){
+      diff = Math.abs(currentAngle - teacherAngles[2]);
+    }*/
+
+    differenceDiv.innerHTML =
+      `角度差: ${diff.toFixed(1)}°`;
+    
+    var [shoulder, elbow, wrist] = getPoints(
+      results,
+      side,
+      ["shoulder", "elbow", "wrist"]
+    );
+    console.log(
+      `肩: ${shoulder.z.toFixed(2)}, 肘: ${elbow.z.toFixed(2)}, 手首: ${wrist.z.toFixed(2)}, step: ${step}`
+    );
+  }
+
+</script>
+
+</html>

@@ -325,7 +325,7 @@
 
       const baseFreq = 523.251 // C5
       const maxOffset = 200   // 上下の変化幅
-      const DEAD_ZONE = 5
+      const DEAD_ZONE = 10 // ±10°
 
       const clamped = Math.max(minAngle, Math.min(maxAngle, angle))
       const error = clamped - targetAngle // 符号付き
@@ -382,6 +382,8 @@
     }
 
     const audioContext = new (window.AudioContext || window.webkitAudioContext)()
+    const audioContext2 = new (window.AudioContext || window.webkitAudioContext)()
+
 
     // 指定した周波数で音を鳴らす関数
     function playTone(freq) {
@@ -390,7 +392,7 @@
       oscillator.type = 'sine'
 
       const gainNode = audioContext.createGain()
-      gainNode.gain.setValueAtTime(1.2, audioContext.currentTime)
+      gainNode.gain.setValueAtTime(1.0, audioContext.currentTime)
       //gainNode.gain.exponentialRampToValueAtTime(0.001, audioContext.currentTime + 1.5)
       oscillator.connect(gainNode)
       gainNode.connect(audioContext.destination)
@@ -423,7 +425,7 @@
       osc2.type = 'sine'
 
       const gain = audioContext.createGain()
-      gain.gain.setValueAtTime(0.8, audioContext.currentTime)
+      gain.gain.setValueAtTime(1.2, audioContext.currentTime)
 
       osc1.connect(gain)
       osc2.connect(gain)
@@ -434,6 +436,28 @@
 
       window.osc1 = osc1
       window.osc2 = osc2
+      window.gainNode = gain;
+    }
+
+    // 指定した周波数で音を鳴らす関数
+    function harmonyTone(freq) {
+
+      if (window.oscillator2) {
+        return;
+      }
+      const oscillator = audioContext2.createOscillator()
+      oscillator.frequency.setValueAtTime(freq, audioContext2.currentTime)
+      oscillator.type = 'sine'
+
+      const gainNode = audioContext2.createGain()
+      gainNode.gain.setValueAtTime(0.8, audioContext2.currentTime)
+      //gainNode.gain.exponentialRampToValueAtTime(0.001, audioContext.currentTime + 1.5)
+      oscillator.connect(gainNode)
+      gainNode.connect(audioContext2.destination)
+      oscillator.start()
+      //oscillator.stop(audioContext.currentTime + 1.5)
+      window.oscillator2 = oscillator;
+      window.gainNode2 = gainNode;
     }
 
     function allStop(freq){
@@ -441,8 +465,34 @@
       window.oscillator.stop();
       window.oscillator = null;
       window.gainNode = null;
+      }
+      if(window.oscillator2){
+      window.oscillator2.stop();
+      window.oscillator2 = null;
+      window.gainNode2 = null;
+      }
     }
-}
+
+    function RichStop(freq){
+      if(window.osc1){
+        window.osc1.stop();
+        window.osc1 = null;
+        window.gainNode = null;
+      }
+      if(window.osc2){
+        window.osc2.stop();
+        window.osc2 = null;
+        window.gainNode = null;
+      }
+    }
+
+    function harmonyStop(freq){
+      if(window.oscillator2){
+      window.oscillator2.stop();
+      window.oscillator2 = null;
+      window.gainNode2 = null;
+      }
+    }
 
 
     
@@ -481,10 +531,12 @@
       const angle1 = getRShoulderAngle(results, 'right')
       const angle2 = getRElbowAngle(results, 'right')
       const RData = getRWrist(results, 'right')
+      var targetAngle = 150;//目標の角度（肩は150°に設定）
 
       // visibilityチェック（重要）
       if (angle1.visibility < 0.5 || angle2.visibility < 0.5 || RData.visibility < 0.5) {
         allStop()
+        harmonyStop()
         return
       }
 
@@ -494,22 +546,26 @@
       //const freq = mapWristToFrequency(RData.Y)
       const freq = mapJointAngleToFrequency(
         angle1.angle,
-        150,
+        targetAngle,
         JOINT_CONFIG.shoulder
       )
       updateTone(freq)
-
+      if(angle1.angle < targetAngle + 10 && angle1.angle > targetAngle - 10){
+        harmonyTone(391.995) // 目標角度に近いときはリッチな音
+      }else if(angle1.angle > targetAngle + 10 || angle1.angle < targetAngle - 10){
+        harmonyStop()// 目標角度から離れると通常の音
+      }
   // =====================
   // デバッグ
   // =====================
-      console.log({
-        hipShoulderElbow: angle1.angle,
-        shoulderElbowWrist: angle2.angle,
+      console.log(
+        angle1.angle,
+        //angle2.angle,
         //elbowY: RData.elbowY,
-        wristX: RData.X,
-        wristY: RData.Y,
+        //wristX: RData.X,
+        //wristY: RData.Y,
         freq,
-      })
+      )
       
     }
 
@@ -518,12 +574,12 @@
       return `https://cdn.jsdelivr.net/npm/@mediapipe/pose/${file}`;
     }});
     pose.setOptions({
-      modelComplexity: 0,
-      smoothLandmarks: false,
+      modelComplexity: 2,
+      smoothLandmarks: true,
       enableSegmentation: false,
       //smoothSegmentation: false,
-      minDetectionConfidence: 0.5,
-      minTrackingConfidence: 0.5
+      minDetectionConfidence: 0.6,
+      minTrackingConfidence: 0.6
     });
 
     pose.onResults(onResults);
